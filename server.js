@@ -58,20 +58,35 @@ const allowedOrigins = [
   "https://ecommerce-six-brown-12.vercel.app",
   "https://www.bigbestmart.com",
   "https://admin-eight-ruddy.vercel.app",
+  "https://big-best-frontend.vercel.app", // New deployed frontend
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      // Allow requests with no origin (like curl, etc.)
+    // Allow requests with no origin (like mobile apps, Postman, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      callback(new Error("Not allowed by CORS"));
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error(`Not allowed by CORS: ${origin}`));
     }
   },
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   exposedHeaders: ["Authorization"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Cache-Control",
+    "X-File-Name",
+  ],
 };
 /* app.use(cors({
    origin: function (origin, callback) {

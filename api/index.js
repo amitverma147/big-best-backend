@@ -64,6 +64,7 @@ const allowedOrigins = [
   "https://ecommerce-six-brown-12.vercel.app",
   "https://www.bigbestmart.com",
   "https://admin-eight-ruddy.vercel.app",
+  "https://big-best-frontend.vercel.app",
 ];
 
 const corsOptions = {
