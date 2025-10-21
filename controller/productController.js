@@ -1,13 +1,365 @@
-import {supabase} from "../config/supabaseClient.js";
+import { supabase } from "../config/supabaseClient.js";
 
 export const getAllProducts = async (req, res) => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('id, name, price'); // add more fields if needed
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("active", true);
 
-  if (error) {
-    return res.status(500).json({ error: error.message });
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Transform the data to match frontend expectations
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
+};
 
-  res.status(200).json(data);
+export const getProductsByCategory = async (req, res) => {
+  try {
+    const { category } = req.params;
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("active", true)
+      .eq("category", category);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
+      category: category,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getAllCategories = async (req, res) => {
+  try {
+    // First try to get categories from the categories table
+    const { data: categoriesData, error: categoriesError } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("active", true);
+
+    let categories = [];
+
+    // If we have data from categories table, use that
+    if (categoriesData && categoriesData.length > 0 && !categoriesError) {
+      categories = categoriesData.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        image_url: cat.image_url,
+        featured: cat.featured,
+        icon: cat.icon,
+      }));
+    } else {
+      // Fallback: get unique categories from products table
+      const { data: productCategories, error: productError } = await supabase
+        .from("products")
+        .select("category")
+        .not("category", "is", null)
+        .eq("active", true);
+
+      if (productCategories && !productError) {
+        const uniqueProductCategories = [
+          ...new Set(productCategories.map((item) => item.category)),
+        ].filter(Boolean);
+
+        categories = uniqueProductCategories.map((catName) => ({
+          id: null,
+          name: catName,
+          description: null,
+          image_url: null,
+          featured: false,
+          icon: null,
+        }));
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      categories: categories,
+      total: categories.length,
+    });
+  } catch (error) {
+    console.error("Server error in getAllCategories:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get featured products
+export const getFeaturedProducts = async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories!products_category_id_fkey(
+          id,
+          name,
+          description,
+          image_url
+        )
+      `
+      )
+      .eq("active", true)
+      .eq("featured", true)
+      .limit(20);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      category_info: product.categories,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get products with pagination and filters
+export const getProductsWithFilters = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 20,
+      category,
+      minPrice,
+      maxPrice,
+      featured,
+      popular,
+      search,
+    } = req.query;
+
+    let query = supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories!products_category_id_fkey(
+          id,
+          name,
+          description,
+          image_url
+        )
+      `,
+        { count: "exact" }
+      )
+      .eq("active", true);
+
+    // Apply filters
+    if (category) {
+      query = query.or(
+        `category.eq.${category},categories.name.eq.${category}`
+      );
+    }
+
+    if (minPrice) {
+      query = query.gte("price", parseFloat(minPrice));
+    }
+
+    if (maxPrice) {
+      query = query.lte("price", parseFloat(maxPrice));
+    }
+
+    if (featured === "true") {
+      query = query.eq("featured", true);
+    }
+
+    if (popular === "true") {
+      query = query.eq("popular", true);
+    }
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    // Apply pagination
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      category_info: product.categories,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(count / limit),
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .eq("active", true)
+      .single();
+
+    if (error) {
+      console.error("Supabase error:", error);
+      if (error.code === "PGRST116") {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Transform the data to match frontend expectations
+    const transformedProduct = {
+      id: data.id,
+      name: data.name,
+      description: data.description,
+      price: data.price,
+      old_price: data.old_price,
+      rating: data.rating || 4.0,
+      review_count: data.review_count || 0,
+      discount: data.discount || 0,
+      image: data.image,
+      images: data.images,
+      in_stock: data.in_stock,
+      popular: data.popular,
+      featured: data.featured,
+      category: data.category,
+      uom: data.uom,
+      brand_name: data.brand_name,
+      created_at: data.created_at,
+    };
+
+    res.status(200).json({
+      success: true,
+      product: transformedProduct,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 };
