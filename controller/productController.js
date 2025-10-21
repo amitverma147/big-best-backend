@@ -213,6 +213,8 @@ export const getProductsWithFilters = async (req, res) => {
       maxPrice,
       featured,
       popular,
+      most_orders,
+      top_sale,
       search,
     } = req.query;
 
@@ -253,6 +255,14 @@ export const getProductsWithFilters = async (req, res) => {
 
     if (popular === "true") {
       query = query.eq("popular", true);
+    }
+
+    if (most_orders === "true") {
+      query = query.eq("most_orders", true);
+    }
+
+    if (top_sale === "true") {
+      query = query.eq("top_sale", true);
     }
 
     if (search) {
@@ -357,6 +367,59 @@ export const getProductById = async (req, res) => {
     res.status(200).json({
       success: true,
       product: transformedProduct,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get Quick Picks - products that are popular, most_orders, or top_sale
+export const getQuickPicks = async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+
+    // Simple query to test if API is working
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .limit(parseInt(limit));
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    console.log("Quick picks data:", data?.length || 0, "products found");
+
+    // Transform the data to match frontend expectations
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      most_orders: product.most_orders,
+      top_sale: product.top_sale,
+      category: product.category,
+      category_info: product.categories,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
     });
   } catch (error) {
     console.error("Server error:", error);

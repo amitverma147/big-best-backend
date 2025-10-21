@@ -6,6 +6,7 @@ import {
   getFeaturedProducts,
   getProductsWithFilters,
   getProductById,
+  getQuickPicks,
 } from "../controller/productController.js";
 
 const router = express.Router();
@@ -14,6 +15,7 @@ router.get("/allproducts", getAllProducts);
 router.get("/categories", getAllCategories);
 router.get("/featured", getFeaturedProducts);
 router.get("/filter", getProductsWithFilters);
+router.get("/quick-picks", getQuickPicks);
 router.get("/category/:category", getProductsByCategory);
 router.get("/:id", getProductById);
 
