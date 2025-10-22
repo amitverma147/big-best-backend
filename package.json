@@ -12,6 +12,9 @@
     "build": "echo \"No build step required\"",
     "seed": "node seed-database.js"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "author": "rudraksh",
   "license": "ISC",
   "dependencies": {
