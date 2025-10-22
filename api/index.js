@@ -49,6 +49,7 @@ import returnOrderRoutes from "../routes/returnOrderRoutes.js";
 import walletRoutes from "../routes/walletRoutes.js";
 import refundRoutes from "../routes/refundRoutes.js";
 import debugRoutes from "../routes/debugRoutes.js";
+import dailyDealsRoutes from "../routes/dailyDealsRoutes.js";
 import quickFixRoutes from "../routes/quickFixRoutes.js";
 import trackingRoutes from "../routes/trackingRoutes.js";
 
@@ -128,6 +129,7 @@ app.use("/api/return-orders", returnOrderRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/refund", refundRoutes);
 app.use("/api/debug", debugRoutes);
+app.use("/api/daily-deals", dailyDealsRoutes);
 app.use("/api/quick", quickFixRoutes);
 app.use("/api/tracking", trackingRoutes);
 
