@@ -1,21 +1,40 @@
 import { supabase } from "./config/supabaseClient.js";
 
-async function createBucket() {
-  try {
-    const { data, error } = await supabase.storage.createBucket('profile-images', {
+async function createBuckets() {
+  const buckets = [
+    {
+      name: "profile-images",
       public: true,
-      allowedMimeTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
-      fileSizeLimit: 5242880 // 5MB
-    });
-    
-    if (error && error.message !== 'Bucket already exists') {
-      console.error('Error creating bucket:', error);
-    } else {
-      console.log('✅ Bucket created successfully or already exists');
+      allowedMimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+      fileSizeLimit: 5242880, // 5MB
+    },
+    {
+      name: "daily-deals",
+      public: true,
+      allowedMimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+      fileSizeLimit: 5242880, // 5MB
+    },
+  ];
+
+  for (const bucket of buckets) {
+    try {
+      const { data, error } = await supabase.storage.createBucket(bucket.name, {
+        public: bucket.public,
+        allowedMimeTypes: bucket.allowedMimeTypes,
+        fileSizeLimit: bucket.fileSizeLimit,
+      });
+
+      if (error && error.message !== "Bucket already exists") {
+        console.error(`Error creating bucket '${bucket.name}':`, error);
+      } else {
+        console.log(
+          `✅ Bucket '${bucket.name}' created successfully or already exists`
+        );
+      }
+    } catch (err) {
+      console.error(`Bucket '${bucket.name}' creation failed:`, err);
     }
-  } catch (err) {
-    console.error('Bucket creation failed:', err);
   }
 }
 
-createBucket();
+createBuckets();
