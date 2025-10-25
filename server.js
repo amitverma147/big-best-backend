@@ -47,6 +47,8 @@ import refundRoutes from "./routes/refundRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 import quickFixRoutes from "./routes/quickFixRoutes.js";
 import trackingRoutes from "./routes/trackingRoutes.js";
+import bulkOrderRoutes from "./routes/bulkOrderRoutes.js";
+import bulkProductRoutes from "./routes/bulkProductRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -148,6 +150,8 @@ app.use("/api/refund", refundRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/quick", quickFixRoutes);
 app.use("/api/tracking", trackingRoutes);
+app.use("/api/bulk-orders", bulkOrderRoutes);
+app.use("/api/bulk-products", bulkProductRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
