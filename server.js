@@ -47,6 +47,7 @@ import refundRoutes from "./routes/refundRoutes.js";
 import debugRoutes from "./routes/debugRoutes.js";
 import quickFixRoutes from "./routes/quickFixRoutes.js";
 import trackingRoutes from "./routes/trackingRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -148,6 +149,7 @@ app.use("/api/refund", refundRoutes);
 app.use("/api/debug", debugRoutes);
 app.use("/api/quick", quickFixRoutes);
 app.use("/api/tracking", trackingRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
