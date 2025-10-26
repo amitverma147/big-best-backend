@@ -47,8 +47,73 @@ router.post("/test-notification", async (req, res) => {
   }
 });
 
+// Add sample groups to Pet Care subcategory
+router.post("/add-pet-groups", async (req, res) => {
+  try {
+    const petCareSubcategoryId = "ada8a78d-7ea1-4219-8794-f25eafa831a7";
+
+    const sampleGroups = [
+      {
+        name: "Dog Food",
+        description: "Premium dog food and treats",
+        icon: "🐕",
+        image_url: null,
+        subcategory_id: petCareSubcategoryId,
+        featured: true,
+        active: true,
+        sort_order: 0,
+      },
+      {
+        name: "Cat Food",
+        description: "Nutritious cat food and snacks",
+        icon: "🐱",
+        image_url: null,
+        subcategory_id: petCareSubcategoryId,
+        featured: true,
+        active: true,
+        sort_order: 1,
+      },
+      {
+        name: "Pet Toys",
+        description: "Fun toys for your pets",
+        icon: "🎾",
+        image_url: null,
+        subcategory_id: petCareSubcategoryId,
+        featured: false,
+        active: true,
+        sort_order: 2,
+      },
+      {
+        name: "Pet Accessories",
+        description: "Collars, leashes, and more",
+        icon: "🦴",
+        image_url: null,
+        subcategory_id: petCareSubcategoryId,
+        featured: false,
+        active: true,
+        sort_order: 3,
+      },
+    ];
+
+    const { data, error } = await supabase.from("groups").insert(sampleGroups);
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: "Pet Care groups added successfully",
+      data,
+    });
+  } catch (error) {
+    console.error("Add pet groups error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get all notifications for debugging
-router.get("/all-notifications", async (req, res) => {
+router.get("/notifications", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("notifications")

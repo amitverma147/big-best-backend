@@ -194,3 +194,40 @@ export const getCategoriesHierarchy = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// Get subcategory details with category info
+export const getSubcategoryDetails = async (req, res) => {
+  try {
+    const { subcategoryId } = req.params;
+
+    const { data, error } = await supabase
+      .from("subcategories")
+      .select(
+        `
+        *,
+        categories (
+          id,
+          name,
+          image_url,
+          icon
+        )
+      `
+      )
+      .eq("id", subcategoryId)
+      .eq("active", true)
+      .single();
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.status(200).json({
+      success: true,
+      subcategory: data,
+    });
+  } catch (error) {
+    console.error("Server error in getSubcategoryDetails:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

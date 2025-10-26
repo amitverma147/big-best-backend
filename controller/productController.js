@@ -426,3 +426,125 @@ export const getQuickPicks = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// Get products by subcategory
+export const getProductsBySubcategory = async (req, res) => {
+  try {
+    const { subcategoryId } = req.params;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories!products_category_id_fkey(
+          id,
+          name,
+          description,
+          image_url
+        )
+      `
+      )
+      .eq("active", true)
+      .eq("subcategory_id", subcategoryId);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      category_info: product.categories,
+      subcategory_id: product.subcategory_id,
+      group_id: product.group_id,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
+      subcategoryId: subcategoryId,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Get products by group
+export const getProductsByGroup = async (req, res) => {
+  try {
+    const { groupId } = req.params;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        `
+        *,
+        categories!products_category_id_fkey(
+          id,
+          name,
+          description,
+          image_url
+        )
+      `
+      )
+      .eq("active", true)
+      .eq("group_id", groupId);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    const transformedProducts = data.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      old_price: product.old_price,
+      rating: product.rating || 4.0,
+      review_count: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      in_stock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      category_info: product.categories,
+      subcategory_id: product.subcategory_id,
+      group_id: product.group_id,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      total: transformedProducts.length,
+      groupId: groupId,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
