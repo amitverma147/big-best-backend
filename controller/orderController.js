@@ -9,14 +9,40 @@ import {
 
 /** Get all orders (admin usage) */
 export const getAllOrders = async (req, res) => {
-  const { data, error } = await supabase
+  const { page = 1, limit = 10 } = req.query;
+  const offset = (page - 1) * limit;
+
+  const { data, error, count } = await supabase
     .from("orders")
-    .select("*, users(name, email, phone)") // 👈 join users table
-    .order("created_at", { ascending: false });
+    .select(`
+      *,
+      users(name, email, phone),
+      order_items(
+        id,
+        product_id,
+        quantity,
+        price,
+        is_bulk_order,
+        bulk_range,
+        original_price
+      )
+    `, { count: 'exact' })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error)
     return res.status(500).json({ success: false, error: error.message });
-  return res.json({ success: true, orders: data });
+  
+  return res.json({ 
+    success: true, 
+    orders: data,
+    pagination: {
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(count / limit)
+    }
+  });
 };
 
 /** Update an order’s status */

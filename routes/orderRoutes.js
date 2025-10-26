@@ -14,6 +14,7 @@ import {
 const router = express.Router();
 
 router.get("/all", getAllOrders);
+router.get("/", getAllOrders);
 router.post("/place", placeOrder);
 router.post("/place-detailed", placeOrderWithDetailedAddress);
 router.get("/status/:id", async (req, res) => {
