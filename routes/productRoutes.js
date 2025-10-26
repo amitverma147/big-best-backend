@@ -13,7 +13,6 @@ import {
 
 const router = express.Router();
 
-router.get("/:id", getProductById);
 router.get("/allproducts", getAllProducts);
 router.get("/categories", getAllCategories);
 router.get("/featured", getFeaturedProducts);
@@ -22,5 +21,6 @@ router.get("/quick-picks", getQuickPicks);
 router.get("/category/:category", getProductsByCategory);
 router.get("/subcategory/:subcategoryId", getProductsBySubcategory);
 router.get("/group/:groupId", getProductsByGroup);
+router.get("/:id", getProductById);
 
 export default router;
