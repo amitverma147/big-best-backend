@@ -50,6 +50,7 @@ import trackingRoutes from "./routes/trackingRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import bulkOrderRoutes from "./routes/bulkOrderRoutes.js";
 import bulkProductRoutes from "./routes/bulkProductRoutes.js";
+import videoCardRoutes from "./routes/videoCardRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -108,6 +109,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/business", authRoutes);
@@ -149,11 +151,12 @@ app.use("/api/return-orders", returnOrderRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/refund", refundRoutes);
 app.use("/api/debug", debugRoutes);
-app.use("/api/quick", quickFixRoutes);
+app.use("/api/quick-fix", quickFixRoutes);
 app.use("/api/tracking", trackingRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/bulk-orders", bulkOrderRoutes);
 app.use("/api/bulk-products", bulkProductRoutes);
+app.use("/api/video-cards", videoCardRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
