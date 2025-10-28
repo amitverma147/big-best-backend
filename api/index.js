@@ -55,6 +55,7 @@ import trackingRoutes from "../routes/trackingRoutes.js";
 import categoryRoutes from "../routes/categoryRoutes.js";
 import bulkOrderRoutes from "../routes/bulkOrderRoutes.js";
 import bulkProductRoutes from "../routes/bulkProductRoutes.js";
+import shopByStoreRoutes from "../routes/shopByStoreRoutes.js";
 
 const app = express();
 
@@ -138,6 +139,7 @@ app.use("/api/tracking", trackingRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/bulk-orders", bulkOrderRoutes);
 app.use("/api/bulk-products", bulkProductRoutes);
+app.use("/api/shop-by-stores", shopByStoreRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
