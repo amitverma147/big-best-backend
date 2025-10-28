@@ -1,8 +1,18 @@
-// routes/locationRoutes.js
-import express from 'express'
+const express = require('express');
 const router = express.Router();
-import {getCoordinatesByPincode} from '../controller/locationController.js'
+const {
+  getPincodeDetails,
+  calculateShipping,
+  calculateTax
+} = require('../controller/locationController');
 
-router.get("/get-coordinates", getCoordinatesByPincode);
+// Get pincode details
+router.get('/pincode/:pincode', getPincodeDetails);
 
-export default router;
+// Calculate shipping charges
+router.post('/shipping/calculate', calculateShipping);
+
+// Calculate tax
+router.post('/tax/calculate', calculateTax);
+
+module.exports = router;
