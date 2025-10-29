@@ -1,11 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const {
+import express from 'express';
+import {
   getProductsByPincode,
   checkProductAvailability,
   updateWarehouseInventory,
   getWarehouseInventory
-} = require('../controller/inventoryController');
+} from '../controller/inventoryController.js';
+
+const router = express.Router();
 
 // Get products available in specific pincode
 router.get('/pincode/:pincode/products', getProductsByPincode);
@@ -19,4 +20,4 @@ router.post('/warehouse/inventory/update', updateWarehouseInventory);
 // Get warehouse inventory (Admin)
 router.get('/warehouse/:warehouseId/inventory', getWarehouseInventory);
 
-module.exports = router;
+export default router;

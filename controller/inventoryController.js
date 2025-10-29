@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabaseClient');
+import { supabase } from '../config/supabaseClient.js';
 
 // Get products available in a specific pincode
 const getProductsByPincode = async (req, res) => {
@@ -290,7 +290,7 @@ const getWarehouseInventory = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getProductsByPincode,
   checkProductAvailability,
   updateWarehouseInventory,
