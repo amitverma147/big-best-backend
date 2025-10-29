@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabaseClient');
+import { supabase } from '../config/supabaseClient.js';
 
 // Get product variants
 const getProductVariants = async (req, res) => {
@@ -152,7 +152,7 @@ const deleteProductVariant = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getProductVariants,
   addProductVariant,
   updateProductVariant,

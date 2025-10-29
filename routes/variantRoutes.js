@@ -1,11 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const {
+import express from 'express';
+import {
   getProductVariants,
   addProductVariant,
   updateProductVariant,
   deleteProductVariant
-} = require('../controller/variantController');
+} from '../controller/variantController.js';
+
+const router = express.Router();
 
 // Get product variants
 router.get('/product/:productId', getProductVariants);
@@ -19,4 +20,4 @@ router.put('/update/:id', updateProductVariant);
 // Delete product variant (Admin)
 router.delete('/delete/:id', deleteProductVariant);
 
-module.exports = router;
+export default router;

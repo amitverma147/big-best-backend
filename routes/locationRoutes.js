@@ -1,10 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const {
+import express from 'express';
+import {
   getPincodeDetails,
   calculateShipping,
   calculateTax
-} = require('../controller/locationController');
+} from '../controller/locationController.js';
+
+const router = express.Router();
 
 // Get pincode details
 router.get('/pincode/:pincode', getPincodeDetails);
@@ -15,4 +16,4 @@ router.post('/shipping/calculate', calculateShipping);
 // Calculate tax
 router.post('/tax/calculate', calculateTax);
 
-module.exports = router;
+export default router;

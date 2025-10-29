@@ -1,4 +1,4 @@
-const { supabase } = require('../config/supabaseClient');
+import { supabase } from '../config/supabaseClient.js';
 
 // Get pincode details and delivery availability
 const getPincodeDetails = async (req, res) => {
@@ -118,7 +118,7 @@ const calculateTax = async (req, res) => {
   }
 };
 
-module.exports = {
+export {
   getPincodeDetails,
   calculateShipping,
   calculateTax
