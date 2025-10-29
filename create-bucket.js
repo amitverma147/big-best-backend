@@ -14,6 +14,12 @@ async function createBuckets() {
       allowedMimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
       fileSizeLimit: 5242880, // 5MB
     },
+    {
+      name: "video_thumbnails",
+      public: true,
+      allowedMimeTypes: ["image/png", "image/jpeg", "image/jpg", "image/webp"],
+      fileSizeLimit: 5242880, // 5MB
+    },
   ];
 
   for (const bucket of buckets) {

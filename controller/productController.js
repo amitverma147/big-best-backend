@@ -355,6 +355,7 @@ export const getProductById = async (req, res) => {
       discount: data.discount || 0,
       image: data.image,
       images: data.images,
+      video: data.video,
       in_stock: data.in_stock,
       popular: data.popular,
       featured: data.featured,

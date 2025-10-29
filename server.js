@@ -54,6 +54,8 @@ import productVariantsRoutes from "./routes/productVariantsRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
 import variantRoutes from "./routes/variantRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
+import videoCardRoutes from "./routes/videoCardRoutes.js";
+import shopByStoreRoutes from "./routes/shopByStoreRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -112,6 +114,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/api/business", authRoutes);
@@ -153,7 +156,7 @@ app.use("/api/return-orders", returnOrderRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/refund", refundRoutes);
 app.use("/api/debug", debugRoutes);
-app.use("/api/quick", quickFixRoutes);
+app.use("/api/quick-fix", quickFixRoutes);
 app.use("/api/tracking", trackingRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/bulk-orders", bulkOrderRoutes);
@@ -162,6 +165,8 @@ app.use("/api/product-variants", productVariantsRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/variants", variantRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/video-cards", videoCardRoutes);
+app.use("/api/shop-by-stores", shopByStoreRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {

@@ -56,6 +56,8 @@ import categoryRoutes from "../routes/categoryRoutes.js";
 import bulkOrderRoutes from "../routes/bulkOrderRoutes.js";
 import bulkProductRoutes from "../routes/bulkProductRoutes.js";
 import productVariantsRoutes from "../routes/productVariantsRoutes.js";
+import shopByStoreRoutes from "../routes/shopByStoreRoutes.js";
+import videoCardRoutes from "../routes/videoCardRoutes.js";
 
 const app = express();
 
@@ -140,6 +142,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/bulk-orders", bulkOrderRoutes);
 app.use("/api/bulk-products", bulkProductRoutes);
 app.use("/api/product-variants", productVariantsRoutes);
+app.use("/api/shop-by-stores", shopByStoreRoutes);
+app.use("/api/video-cards", videoCardRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
