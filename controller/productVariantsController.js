@@ -8,7 +8,7 @@ export const getProductVariants = async (req, res) => {
       .from("product_variants")
       .select("*")
       .eq("product_id", productId)
-      .eq("active", true)
+      .eq("is_active", true)
       .order("variant_price", { ascending: true });
 
     if (error) {
@@ -37,6 +37,7 @@ export const addProductVariant = async (req, res) => {
       variant_stock,
       variant_weight,
       variant_unit,
+      shipping_amount,
       is_default,
     } = req.body;
 
@@ -51,6 +52,7 @@ export const addProductVariant = async (req, res) => {
         variant_stock,
         variant_weight,
         variant_unit,
+        shipping_amount,
         is_default,
       })
       .select();
@@ -132,11 +134,12 @@ export const getProductsWithVariants = async (req, res) => {
           variant_stock,
           variant_weight,
           variant_unit,
+          shipping_amount,
           is_default,
-          active
+          is_active
         )
       `)
-      .eq("active", true);
+      .eq("is_active", true);
 
     if (productsError) {
       return res.status(500).json({ error: productsError.message });
