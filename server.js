@@ -57,6 +57,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import videoCardRoutes from "./routes/videoCardRoutes.js";
 import shopByStoreRoutes from "./routes/shopByStoreRoutes.js";
 import productSectionRoutes from "./routes/productSectionRoutes.js";
+import promoBannerRoutes from "./routes/promoBannerRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -169,6 +170,7 @@ app.use("/api/inventory", inventoryRoutes);
 app.use("/api/video-cards", videoCardRoutes);
 app.use("/api/shop-by-stores", shopByStoreRoutes);
 app.use("/api/product-sections", productSectionRoutes);
+app.use("/api/promo-banner", promoBannerRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
