@@ -29,7 +29,10 @@ export const getAllProducts = async (req, res) => {
       featured: product.featured,
       category: product.category,
       uom: product.uom,
+      uom_value: product.uom_value,
+      uom_unit: product.uom_unit,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -74,7 +77,10 @@ export const getProductsByCategory = async (req, res) => {
       featured: product.featured,
       category: product.category,
       uom: product.uom,
+      uom_value: product.uom_value,
+      uom_unit: product.uom_unit,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -361,7 +367,11 @@ export const getProductById = async (req, res) => {
       featured: data.featured,
       category: data.category,
       uom: data.uom,
+      uom_value: data.uom_value,
+      uom_unit: data.uom_unit,
       brand_name: data.brand_name,
+      shipping_amount: data.shipping_amount || 0,
+      specifications: data.specifications,
       created_at: data.created_at,
     };
 
@@ -380,10 +390,12 @@ export const getQuickPicks = async (req, res) => {
   try {
     const { limit = 20 } = req.query;
 
-    // Simple query to test if API is working
+    // Get active products with all fields including shipping_amount and UOM fields
     const { data, error } = await supabase
       .from("products")
       .select("*")
+      .eq("active", true)
+      .order("created_at", { ascending: false })
       .limit(parseInt(limit));
 
     if (error) {
@@ -413,7 +425,11 @@ export const getQuickPicks = async (req, res) => {
       category: product.category,
       category_info: product.categories,
       uom: product.uom,
+      uom_value: product.uom_value,
+      uom_unit: product.uom_unit,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
+      specifications: product.specifications,
       created_at: product.created_at,
     }));
 
