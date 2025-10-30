@@ -8,7 +8,7 @@ export const getProductVariants = async (req, res) => {
       .from("product_variants")
       .select("*")
       .eq("product_id", productId)
-      .eq("is_active", true)
+      .eq("active", true)
       .order("variant_price", { ascending: true });
 
     if (error) {
@@ -139,7 +139,7 @@ export const getProductsWithVariants = async (req, res) => {
           is_active
         )
       `)
-      .eq("is_active", true);
+      .eq("active", true);
 
     if (productsError) {
       return res.status(500).json({ error: productsError.message });
