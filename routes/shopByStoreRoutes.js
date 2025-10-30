@@ -12,10 +12,10 @@ const router = express.Router();
 const upload = multer();
 
 // Routes
-router.get("/", getAllShopByStores);
+router.post("/add", upload.single("image_url"), createShopByStore);
+router.put("/update/:id", upload.single("image"), updateShopByStore);
+router.delete("/delete/:id", deleteShopByStore);
+router.get("/list", getAllShopByStores);
 router.get("/:id", getShopByStoreById);
-router.post("/", upload.single("image_url"), createShopByStore);
-router.put("/:id", upload.single("image_url"), updateShopByStore);
-router.delete("/:id", deleteShopByStore);
 
 export default router;

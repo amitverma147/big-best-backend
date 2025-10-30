@@ -7,11 +7,11 @@ const getAllShopByStores = async (req, res) => {
       .from("shop_by_stores")
       .select("*")
       .order("id");
-    if (error) throw error;
-    res.json(data);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.json({ success: true, shopByStores: data });
   } catch (error) {
-    console.error("Error fetching shop by stores:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
@@ -24,16 +24,15 @@ const getShopByStoreById = async (req, res) => {
       .select("*")
       .eq("id", id)
       .single();
-    if (error) {
-      if (error.code === "PGRST116") {
-        return res.status(404).json({ error: "Shop by store not found" });
-      }
-      throw error;
-    }
-    res.json(data);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    if (!data)
+      return res
+        .status(404)
+        .json({ success: false, error: "Shop By Store not found" });
+    res.json({ success: true, shopByStore: data });
   } catch (error) {
-    console.error("Error fetching shop by store:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
@@ -58,7 +57,9 @@ const createShopByStore = async (req, res) => {
         });
 
       if (uploadError)
-        return res.status(400).json({ error: uploadError.message });
+        return res
+          .status(400)
+          .json({ success: false, error: uploadError.message });
       const { data: urlData } = supabase.storage
         .from("shop_by_stores")
         .getPublicUrl(fileName);
@@ -70,11 +71,11 @@ const createShopByStore = async (req, res) => {
       .insert([{ title, image_url: imageUrl, subtitle }])
       .select()
       .single();
-    if (error) throw error;
-    res.status(201).json(data);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.status(201).json({ success: true, shopByStore: data });
   } catch (error) {
-    console.error("Error creating shop by store:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
@@ -99,7 +100,9 @@ const updateShopByStore = async (req, res) => {
           upsert: true,
         });
       if (uploadError)
-        return res.status(400).json({ error: uploadError.message });
+        return res
+          .status(400)
+          .json({ success: false, error: uploadError.message });
       const { data: urlData } = supabase.storage
         .from("shop_by_stores")
         .getPublicUrl(fileName);
@@ -112,39 +115,27 @@ const updateShopByStore = async (req, res) => {
       .eq("id", id)
       .select()
       .single();
-    if (error) {
-      if (error.code === "PGRST116") {
-        return res.status(404).json({ error: "Shop by store not found" });
-      }
-      throw error;
-    }
-    res.json(data);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.json({ success: true, shopByStore: data });
   } catch (error) {
-    console.error("Error updating shop by store:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
 // Delete shop by store
 const deleteShopByStore = async (req, res) => {
-  const { id } = req.params;
   try {
-    const { data, error } = await supabase
+    const { id } = req.params;
+    const { error } = await supabase
       .from("shop_by_stores")
       .delete()
-      .eq("id", id)
-      .select()
-      .single();
-    if (error) {
-      if (error.code === "PGRST116") {
-        return res.status(404).json({ error: "Shop by store not found" });
-      }
-      throw error;
-    }
-    res.json({ message: "Shop by store deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting shop by store:", error);
-    res.status(500).json({ error: "Internal server error" });
+      .eq("id", id);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.json({ success: true, message: "Shop By Store deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 };
 
