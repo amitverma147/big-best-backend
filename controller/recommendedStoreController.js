@@ -175,20 +175,7 @@ export async function getAllRecommendedStores(req, res) {
   }
 }
 
-// Get Active Recommended Stores (for website)
-export async function getActiveRecommendedStores(req, res) {
-  try {
-    const { data, error } = await supabase
-      .from("recommended_store")
-      .select("*")
-      .eq("is_active", true);
-    if (error)
-      return res.status(400).json({ success: false, error: error.message });
-    res.json({ success: true, recommendedStores: data });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-}
+
 
 // Get Active Recommended Stores (for website)
 export async function getActiveRecommendedStores(req, res) {
