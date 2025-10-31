@@ -388,25 +388,82 @@ export const getProductById = async (req, res) => {
 // Get Quick Picks - products that are popular, most_orders, or top_sale
 export const getQuickPicks = async (req, res) => {
   try {
-    const { limit = 20 } = req.query;
+    const { limit = 30 } = req.query;
 
-    // Get active products with all fields including shipping_amount and UOM fields
-    const { data, error } = await supabase
-      .from("products")
-      .select("*")
-      .eq("active", true)
-      .order("created_at", { ascending: false })
-      .limit(parseInt(limit));
+    // First, get top selling products based on order_items quantity
+    const { data: orderItems, error: orderError } = await supabase
+      .from("order_items")
+      .select("product_id, quantity");
 
-    if (error) {
-      console.error("Supabase error:", error);
-      return res.status(500).json({ error: error.message });
+    let topSellingProductIds = [];
+
+    if (!orderError && orderItems) {
+      // Aggregate quantities by product_id
+      const salesMap = {};
+      orderItems.forEach((item) => {
+        if (item.product_id && item.quantity) {
+          salesMap[item.product_id] =
+            (salesMap[item.product_id] || 0) + item.quantity;
+        }
+      });
+
+      // Sort by total quantity sold (descending)
+      topSellingProductIds = Object.entries(salesMap)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, parseInt(limit))
+        .map(([productId]) => productId);
     }
 
-    console.log("Quick picks data:", data?.length || 0, "products found");
+    let products = [];
+
+    if (topSellingProductIds.length > 0) {
+      // Get product details for top selling products
+      const { data: productDetails, error: detailsError } = await supabase
+        .from("products")
+        .select("*")
+        .in("id", topSellingProductIds)
+        .eq("active", true);
+
+      if (!detailsError && productDetails) {
+        // Sort products to match the order of top selling
+        const productMap = productDetails.reduce((map, product) => {
+          map[product.id] = product;
+          return map;
+        }, {});
+
+        products = topSellingProductIds
+          .map((id) => productMap[id])
+          .filter((product) => product); // Remove any null products
+      }
+    }
+
+    // If we don't have enough top selling products, fill with latest products
+    if (products.length < parseInt(limit)) {
+      const remainingLimit = parseInt(limit) - products.length;
+      const excludeIds = products.map((p) => p.id);
+
+      let latestQuery = supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(remainingLimit);
+
+      if (excludeIds.length > 0) {
+        latestQuery = latestQuery.not("id", "in", `(${excludeIds.join(",")})`);
+      }
+
+      const { data: latestData, error: latestError } = await latestQuery;
+
+      if (!latestError && latestData) {
+        products = [...products, ...latestData];
+      }
+    }
+
+    console.log("Quick picks data:", products.length, "products found");
 
     // Transform the data to match frontend expectations
-    const transformedProducts = data.map((product) => ({
+    const transformedProducts = products.map((product) => ({
       id: product.id,
       name: product.name,
       description: product.description,

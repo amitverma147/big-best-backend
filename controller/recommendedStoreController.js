@@ -3,9 +3,27 @@ import { supabase } from "../config/supabaseClient.js";
 // Add Recommended Store
 export async function addRecommendedStore(req, res) {
   try {
-    const { name, description } = req.body;
+    const { name, description, is_active = false } = req.body;
     const imageFile = req.file;
     let imageUrl = null;
+
+    // Check if trying to activate and already 8 active
+    if (is_active) {
+      const { data: activeStores, error: countError } = await supabase
+        .from("recommended_store")
+        .select("id", { count: "exact" })
+        .eq("is_active", true);
+      if (countError)
+        return res
+          .status(400)
+          .json({ success: false, error: countError.message });
+      if (activeStores.length >= 8) {
+        return res.status(400).json({
+          success: false,
+          error: "Cannot activate more than 8 stores",
+        });
+      }
+    }
 
     // Upload image to Supabase Storage if a file is provided
     if (imageFile) {
@@ -33,7 +51,7 @@ export async function addRecommendedStore(req, res) {
     // Insert new Recommended Store into the 'recommended_store' table
     const { data, error } = await supabase
       .from("recommended_store")
-      .insert([{ name, description, image_url: imageUrl }])
+      .insert([{ name, description, image_url: imageUrl, is_active }])
       .select()
       .single();
     if (error)
@@ -48,9 +66,43 @@ export async function addRecommendedStore(req, res) {
 export async function editRecommendedStore(req, res) {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, is_active } = req.body;
     const imageFile = req.file;
     let updateData = { name, description };
+
+    // Handle is_active update
+    if (is_active !== undefined) {
+      if (is_active) {
+        // Check current active count, excluding this store if it's already active
+        const { data: currentStore, error: fetchError } = await supabase
+          .from("recommended_store")
+          .select("is_active")
+          .eq("id", id)
+          .single();
+        if (fetchError)
+          return res
+            .status(400)
+            .json({ success: false, error: fetchError.message });
+
+        if (!currentStore.is_active) {
+          const { data: activeStores, error: countError } = await supabase
+            .from("recommended_store")
+            .select("id", { count: "exact" })
+            .eq("is_active", true);
+          if (countError)
+            return res
+              .status(400)
+              .json({ success: false, error: countError.message });
+          if (activeStores.length >= 8) {
+            return res.status(400).json({
+              success: false,
+              error: "Cannot activate more than 8 stores",
+            });
+          }
+        }
+      }
+      updateData.is_active = is_active;
+    }
 
     // Update image if a new one is provided
     if (imageFile) {
@@ -115,6 +167,36 @@ export async function getAllRecommendedStores(req, res) {
     const { data, error } = await supabase
       .from("recommended_store")
       .select("*");
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.json({ success: true, recommendedStores: data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// Get Active Recommended Stores (for website)
+export async function getActiveRecommendedStores(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from("recommended_store")
+      .select("*")
+      .eq("is_active", true);
+    if (error)
+      return res.status(400).json({ success: false, error: error.message });
+    res.json({ success: true, recommendedStores: data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// Get Active Recommended Stores (for website)
+export async function getActiveRecommendedStores(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from("recommended_store")
+      .select("*")
+      .eq("is_active", true);
     if (error)
       return res.status(400).json({ success: false, error: error.message });
     res.json({ success: true, recommendedStores: data });
