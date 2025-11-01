@@ -18,20 +18,19 @@ export const getAllProducts = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
-      uom: product.uom,
-      uom_value: product.uom_value,
-      uom_unit: product.uom_unit,
-      brand_name: product.brand_name,
+      weight:
+        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+      brand: product.brand_name || "BigandBest",
       shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
@@ -66,20 +65,19 @@ export const getProductsByCategory = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
-      uom: product.uom,
-      uom_value: product.uom_value,
-      uom_unit: product.uom_unit,
-      brand_name: product.brand_name,
+      weight:
+        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+      brand: product.brand_name || "BigandBest",
       shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
@@ -181,13 +179,13 @@ export const getFeaturedProducts = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
@@ -293,13 +291,13 @@ export const getProductsWithFilters = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
@@ -357,21 +355,19 @@ export const getProductById = async (req, res) => {
       name: data.name,
       description: data.description,
       price: data.price,
-      old_price: data.old_price,
+      oldPrice: data.old_price,
       rating: data.rating || 4.0,
-      review_count: data.review_count || 0,
+      reviews: data.review_count || 0,
       discount: data.discount || 0,
       image: data.image,
       images: data.images,
       video: data.video,
-      in_stock: data.in_stock,
+      inStock: data.in_stock,
       popular: data.popular,
       featured: data.featured,
       category: data.category,
-      uom: data.uom,
-      uom_value: data.uom_value,
-      uom_unit: data.uom_unit,
-      brand_name: data.brand_name,
+      weight: data.uom || `${data.uom_value || 1} ${data.uom_unit || "kg"}`,
+      brand: data.brand_name || "BigandBest",
       shipping_amount: data.shipping_amount || 0,
       specifications: data.specifications,
       created_at: data.created_at,
@@ -390,75 +386,192 @@ export const getProductById = async (req, res) => {
 // Get Quick Picks - products that are popular, most_orders, or top_sale
 export const getQuickPicks = async (req, res) => {
   try {
-    const { limit = 30 } = req.query;
-
-    // First, get top selling products based on order_items quantity
-    const { data: orderItems, error: orderError } = await supabase
-      .from("order_items")
-      .select("product_id, quantity");
-
-    let topSellingProductIds = [];
-
-    if (!orderError && orderItems) {
-      // Aggregate quantities by product_id
-      const salesMap = {};
-      orderItems.forEach((item) => {
-        if (item.product_id && item.quantity) {
-          salesMap[item.product_id] =
-            (salesMap[item.product_id] || 0) + item.quantity;
-        }
-      });
-
-      // Sort by total quantity sold (descending)
-      topSellingProductIds = Object.entries(salesMap)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, parseInt(limit))
-        .map(([productId]) => productId);
-    }
+    const { limit = 30, filter } = req.query;
 
     let products = [];
 
-    if (topSellingProductIds.length > 0) {
-      // Get product details for top selling products
+    if (filter === "new_arrivals") {
+      // Get latest products
       const { data: productDetails, error: detailsError } = await supabase
-        .from("products")
-        .select("*")
-        .in("id", topSellingProductIds)
-        .eq("active", true);
-
-      if (!detailsError && productDetails) {
-        // Sort products to match the order of top selling
-        const productMap = productDetails.reduce((map, product) => {
-          map[product.id] = product;
-          return map;
-        }, {});
-
-        products = topSellingProductIds
-          .map((id) => productMap[id])
-          .filter((product) => product); // Remove any null products
-      }
-    }
-
-    // If we don't have enough top selling products, fill with latest products
-    if (products.length < parseInt(limit)) {
-      const remainingLimit = parseInt(limit) - products.length;
-      const excludeIds = products.map((p) => p.id);
-
-      let latestQuery = supabase
         .from("products")
         .select("*")
         .eq("active", true)
         .order("created_at", { ascending: false })
-        .limit(remainingLimit);
+        .limit(parseInt(limit));
 
-      if (excludeIds.length > 0) {
-        latestQuery = latestQuery.not("id", "in", `(${excludeIds.join(",")})`);
+      if (!detailsError && productDetails) {
+        products = productDetails;
+      }
+    } else if (filter === "best_sellers" || !filter) {
+      // Default to best sellers (current logic)
+      // First, get top selling products based on order_items quantity
+      const { data: orderItems, error: orderError } = await supabase
+        .from("order_items")
+        .select("product_id, quantity");
+
+      let topSellingProductIds = [];
+
+      if (!orderError && orderItems) {
+        // Aggregate quantities by product_id
+        const salesMap = {};
+        orderItems.forEach((item) => {
+          if (item.product_id && item.quantity) {
+            salesMap[item.product_id] =
+              (salesMap[item.product_id] || 0) + item.quantity;
+          }
+        });
+
+        // Sort by total quantity sold (descending)
+        topSellingProductIds = Object.entries(salesMap)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, parseInt(limit))
+          .map(([productId]) => productId);
       }
 
-      const { data: latestData, error: latestError } = await latestQuery;
+      if (topSellingProductIds.length > 0) {
+        // Get product details for top selling products
+        const { data: productDetails, error: detailsError } = await supabase
+          .from("products")
+          .select("*")
+          .in("id", topSellingProductIds)
+          .eq("active", true);
 
-      if (!latestError && latestData) {
-        products = [...products, ...latestData];
+        if (!detailsError && productDetails) {
+          // Sort products to match the order of top selling
+          const productMap = productDetails.reduce((map, product) => {
+            map[product.id] = product;
+            return map;
+          }, {});
+
+          products = topSellingProductIds
+            .map((id) => productMap[id])
+            .filter((product) => product); // Remove any null products
+        }
+      }
+
+      // If we don't have enough top selling products, fill with latest products
+      if (products.length < parseInt(limit)) {
+        const remainingLimit = parseInt(limit) - products.length;
+        const excludeIds = products.map((p) => p.id);
+
+        let latestQuery = supabase
+          .from("products")
+          .select("*")
+          .eq("active", true)
+          .order("created_at", { ascending: false })
+          .limit(remainingLimit);
+
+        if (excludeIds.length > 0) {
+          latestQuery = latestQuery.not(
+            "id",
+            "in",
+            `(${excludeIds.join(",")})`
+          );
+        }
+
+        const { data: latestData, error: latestError } = await latestQuery;
+
+        if (!latestError && latestData) {
+          products = [...products, ...latestData];
+        }
+      }
+    } else if (filter === "trending") {
+      // For trending, use products with recent orders (last 30 days)
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: recentOrderItems, error: recentError } = await supabase
+        .from("order_items")
+        .select("product_id, quantity, orders!inner(created_at)")
+        .gte("orders.created_at", thirtyDaysAgo.toISOString());
+
+      let trendingProductIds = [];
+
+      if (!recentError && recentOrderItems) {
+        const trendingMap = {};
+        recentOrderItems.forEach((item) => {
+          if (item.product_id && item.quantity) {
+            trendingMap[item.product_id] =
+              (trendingMap[item.product_id] || 0) + item.quantity;
+          }
+        });
+
+        trendingProductIds = Object.entries(trendingMap)
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, parseInt(limit))
+          .map(([productId]) => productId);
+      }
+
+      if (trendingProductIds.length > 0) {
+        const { data: productDetails, error: detailsError } = await supabase
+          .from("products")
+          .select("*")
+          .in("id", trendingProductIds)
+          .eq("active", true);
+
+        if (!detailsError && productDetails) {
+          const productMap = productDetails.reduce((map, product) => {
+            map[product.id] = product;
+            return map;
+          }, {});
+
+          products = trendingProductIds
+            .map((id) => productMap[id])
+            .filter((product) => product);
+        }
+      }
+
+      // Fill with latest if needed
+      if (products.length < parseInt(limit)) {
+        const remainingLimit = parseInt(limit) - products.length;
+        const excludeIds = products.map((p) => p.id);
+
+        let latestQuery = supabase
+          .from("products")
+          .select("*")
+          .eq("active", true)
+          .order("created_at", { ascending: false })
+          .limit(remainingLimit);
+
+        if (excludeIds.length > 0) {
+          latestQuery = latestQuery.not(
+            "id",
+            "in",
+            `(${excludeIds.join(",")})`
+          );
+        }
+
+        const { data: latestData, error: latestError } = await latestQuery;
+
+        if (!latestError && latestData) {
+          products = [...products, ...latestData];
+        }
+      }
+    } else if (filter === "top_sale") {
+      // Get products marked as top sale
+      const { data: productDetails, error: detailsError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .eq("top_sale", true)
+        .order("created_at", { ascending: false })
+        .limit(parseInt(limit));
+
+      if (!detailsError && productDetails) {
+        products = productDetails;
+      }
+    } else if (filter === "most_orders") {
+      // Get products marked as most ordered
+      const { data: productDetails, error: detailsError } = await supabase
+        .from("products")
+        .select("*")
+        .eq("active", true)
+        .eq("most_orders", true)
+        .order("created_at", { ascending: false })
+        .limit(parseInt(limit));
+
+      if (!detailsError && productDetails) {
+        products = productDetails;
       }
     }
 
@@ -470,23 +583,22 @@ export const getQuickPicks = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       most_orders: product.most_orders,
       top_sale: product.top_sale,
       category: product.category,
       category_info: product.categories,
-      uom: product.uom,
-      uom_value: product.uom_value,
-      uom_unit: product.uom_unit,
-      brand_name: product.brand_name,
+      weight:
+        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+      brand: product.brand_name || "BigandBest",
       shipping_amount: product.shipping_amount || 0,
       specifications: product.specifications,
       created_at: product.created_at,
@@ -494,7 +606,7 @@ export const getQuickPicks = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      products: transformedProducts,
+      products: transformedProducts.slice(0, parseInt(limit)),
       total: transformedProducts.length,
     });
   } catch (error) {
@@ -534,13 +646,13 @@ export const getProductsBySubcategory = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
@@ -550,6 +662,9 @@ export const getProductsBySubcategory = async (req, res) => {
       uom: product.uom,
       brand_name: product.brand_name,
       shipping_amount: product.shipping_amount || 0,
+      weight:
+        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+      brand: product.brand_name || "BigandBest",
       created_at: product.created_at,
     }));
 
@@ -596,13 +711,13 @@ export const getProductsByGroup = async (req, res) => {
       name: product.name,
       description: product.description,
       price: product.price,
-      old_price: product.old_price,
+      oldPrice: product.old_price,
       rating: product.rating || 4.0,
-      review_count: product.review_count || 0,
+      reviews: product.review_count || 0,
       discount: product.discount || 0,
       image: product.image,
       images: product.images,
-      in_stock: product.in_stock,
+      inStock: product.in_stock,
       popular: product.popular,
       featured: product.featured,
       category: product.category,

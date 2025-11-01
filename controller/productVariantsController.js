@@ -20,7 +20,7 @@ export const getProductVariants = async (req, res) => {
       variants: data || [],
     });
   } catch (error) {
-    console.error('Server error:', error);
+    console.error("Server error:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -169,7 +169,8 @@ export const getProductsWithVariants = async (req, res) => {
   try {
     const { data: products, error: productsError } = await supabase
       .from("products")
-      .select(`
+      .select(
+        `
         *,
         product_variants (
           id,
@@ -182,7 +183,7 @@ export const getProductsWithVariants = async (req, res) => {
           variant_unit,
           shipping_amount,
           is_default,
-          is_active
+          active
         )
       `)
       .eq("active", true);
