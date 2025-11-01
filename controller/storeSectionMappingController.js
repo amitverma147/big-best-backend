@@ -178,19 +178,53 @@ export async function updateMappingStatus(req, res) {
   }
 }
 
-// Delete mapping
+// Delete mapping (supports both individual records and grouped deletions)
 export async function deleteMapping(req, res) {
   try {
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from("store_section_mappings")
-      .delete()
-      .eq("id", id);
+    // Check if it's a grouped ID (store_123 or section_456)
+    if (id.startsWith("store_")) {
+      // Delete all store-section mappings for this store
+      const storeId = id.replace("store_", "");
+      const { error } = await supabase
+        .from("store_section_mappings")
+        .delete()
+        .eq("store_id", storeId)
+        .eq("mapping_type", "store_section");
 
-    if (error)
-      return res.status(400).json({ success: false, error: error.message });
-    res.json({ success: true, message: "Mapping deleted successfully" });
+      if (error)
+        return res.status(400).json({ success: false, error: error.message });
+      res.json({
+        success: true,
+        message: "Store-section mappings deleted successfully",
+      });
+    } else if (id.startsWith("section_")) {
+      // Delete all section-product mappings for this section
+      const sectionId = id.replace("section_", "");
+      const { error } = await supabase
+        .from("store_section_mappings")
+        .delete()
+        .eq("section_id", parseInt(sectionId))
+        .eq("mapping_type", "section_product");
+
+      if (error)
+        return res.status(400).json({ success: false, error: error.message });
+      res.json({
+        success: true,
+        message: "Section-product mappings deleted successfully",
+      });
+    } else {
+      // Delete individual mapping record
+      const { error } = await supabase
+        .from("store_section_mappings")
+        .delete()
+        .eq("id", id);
+
+      if (error)
+        return res.status(400).json({ success: false, error: error.message });
+      res.json({ success: true, message: "Mapping deleted successfully" });
+    }
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -215,8 +249,12 @@ export async function getProductsBySection(req, res) {
         .json({ success: false, error: "Section not found" });
     }
 
-    // Get products mapped to this section
-    const { data: mappingsData, error: mappingsError } = await supabase
+    let allProducts = [];
+    let directMappingsData = null;
+    let storeProductsData = null;
+
+    // First, get direct section-product mappings
+    const { data: directMappings, error: directMappingsError } = await supabase
       .from("store_section_mappings")
       .select(
         `
@@ -227,19 +265,58 @@ export async function getProductsBySection(req, res) {
       .eq("mapping_type", "section_product")
       .eq("is_active", true);
 
-    if (mappingsError) {
-      console.error("Mappings error:", mappingsError);
-      return res
-        .status(400)
-        .json({ success: false, error: mappingsError.message });
+    if (!directMappingsError && directMappings) {
+      directMappingsData = directMappings;
+      const directProducts = directMappings.map((mapping) => mapping.products);
+      allProducts = [...allProducts, ...directProducts];
     }
 
-    const products = (mappingsData || []).map((mapping) => mapping.products);
+    // Also get products from stores mapped to this section
+    const { data: storeMappingsData, error: storeMappingsError } =
+      await supabase
+        .from("store_section_mappings")
+        .select("store_id")
+        .eq("section_id", sectionData.id)
+        .eq("mapping_type", "store_section")
+        .eq("is_active", true);
+
+    if (
+      !storeMappingsError &&
+      storeMappingsData &&
+      storeMappingsData.length > 0
+    ) {
+      const storeIds = storeMappingsData.map((mapping) => mapping.store_id);
+
+      // Get products from these stores (limit to recent/top products)
+      const { data: storeProducts, error: storeProductsError } = await supabase
+        .from("products")
+        .select("*")
+        .in("store_id", storeIds)
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .limit(10); // Limit to 10 products per store-section
+
+      if (!storeProductsError && storeProducts) {
+        storeProductsData = storeProducts;
+        allProducts = [...allProducts, ...storeProducts];
+      }
+    }
+
+    // Remove duplicates based on product id (in case a product is both directly mapped and from a mapped store)
+    const uniqueProducts = allProducts.filter(
+      (product, index, self) =>
+        index === self.findIndex((p) => p.id === product.id)
+    );
 
     res.json({
       success: true,
       section: sectionData,
-      products,
+      products: uniqueProducts,
+      mapping_types: {
+        direct_products: directMappingsData ? directMappingsData.length : 0,
+        store_products: storeProductsData ? storeProductsData.length : 0,
+        total_unique_products: uniqueProducts.length,
+      },
     });
   } catch (err) {
     console.error("Get products by section error:", err);
