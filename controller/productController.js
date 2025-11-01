@@ -194,6 +194,7 @@ export const getFeaturedProducts = async (req, res) => {
       category_info: product.categories,
       uom: product.uom,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -305,6 +306,7 @@ export const getProductsWithFilters = async (req, res) => {
       category_info: product.categories,
       uom: product.uom,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -547,6 +549,7 @@ export const getProductsBySubcategory = async (req, res) => {
       group_id: product.group_id,
       uom: product.uom,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -608,6 +611,7 @@ export const getProductsByGroup = async (req, res) => {
       group_id: product.group_id,
       uom: product.uom,
       brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
