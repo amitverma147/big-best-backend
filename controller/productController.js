@@ -325,6 +325,7 @@ export const getProductsWithFilters = async (req, res) => {
 export const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
+    const { pincode } = req.query;
 
     if (!id) {
       return res.status(400).json({ error: "Product ID is required" });
@@ -349,6 +350,45 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ error: "Product not found" });
     }
 
+    // Get delivery information
+    let deliveryInfo = {
+      delivery_type: data.delivery_type || "nationwide",
+      delivery_available: true,
+      delivery_zones: [],
+      delivery_notes: data.delivery_notes || null,
+    };
+
+    // If delivery type is zonal, get zone details
+    if (
+      data.delivery_type === "zonal" &&
+      data.allowed_zone_ids &&
+      data.allowed_zone_ids.length > 0
+    ) {
+      const { data: zones } = await supabase
+        .from("delivery_zones")
+        .select("id, name, display_name")
+        .in("id", data.allowed_zone_ids)
+        .eq("is_active", true);
+
+      if (zones) {
+        deliveryInfo.delivery_zones = zones;
+      }
+    }
+
+    // Check pincode-specific delivery if pincode provided
+    if (pincode && /^\d{6}$/.test(pincode)) {
+      const { data: canDeliver } = await supabase.rpc(
+        "can_deliver_to_pincode",
+        {
+          product_id: parseInt(id),
+          target_pincode: pincode,
+        }
+      );
+
+      deliveryInfo.can_deliver_to_pincode = canDeliver;
+      deliveryInfo.checked_pincode = pincode;
+    }
+
     // Transform the data to match frontend expectations
     const transformedProduct = {
       id: data.id,
@@ -371,6 +411,7 @@ export const getProductById = async (req, res) => {
       shipping_amount: data.shipping_amount || 0,
       specifications: data.specifications,
       created_at: data.created_at,
+      delivery_info: deliveryInfo,
     };
 
     res.status(200).json({
@@ -380,6 +421,286 @@ export const getProductById = async (req, res) => {
   } catch (error) {
     console.error("Server error:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+/**
+ * Create or update product with delivery settings (for admin)
+ */
+export const updateProductDelivery = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      delivery_type,
+      allowed_zone_ids = [],
+      delivery_restrictions = {},
+      delivery_notes,
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: "Product ID is required" });
+    }
+
+    // Validate delivery_type
+    if (delivery_type && !["nationwide", "zonal"].includes(delivery_type)) {
+      return res.status(400).json({
+        error: "Invalid delivery_type. Must be 'nationwide' or 'zonal'",
+      });
+    }
+
+    // Validate zone IDs if delivery_type is zonal
+    if (
+      delivery_type === "zonal" &&
+      (!allowed_zone_ids || allowed_zone_ids.length === 0)
+    ) {
+      return res.status(400).json({
+        error: "Zone IDs are required for zonal delivery",
+      });
+    }
+
+    // If nationwide, clear zone IDs
+    let finalZoneIds = allowed_zone_ids;
+    if (delivery_type === "nationwide") {
+      finalZoneIds = [];
+    }
+
+    // Validate zone IDs exist and are active
+    if (finalZoneIds.length > 0) {
+      const { data: zones, error: zoneError } = await supabase
+        .from("delivery_zones")
+        .select("id")
+        .in("id", finalZoneIds)
+        .eq("is_active", true);
+
+      if (zoneError || !zones || zones.length !== finalZoneIds.length) {
+        return res.status(400).json({
+          error: "One or more zone IDs are invalid or inactive",
+        });
+      }
+    }
+
+    // Update product delivery settings
+    const updateData = {};
+    if (delivery_type !== undefined) updateData.delivery_type = delivery_type;
+    if (allowed_zone_ids !== undefined)
+      updateData.allowed_zone_ids = finalZoneIds;
+    if (delivery_restrictions !== undefined)
+      updateData.delivery_restrictions = delivery_restrictions;
+    if (delivery_notes !== undefined)
+      updateData.delivery_notes = delivery_notes;
+
+    const { data, error } = await supabase
+      .from("products")
+      .update(updateData)
+      .eq("id", id)
+      .select(
+        "id, name, delivery_type, allowed_zone_ids, delivery_restrictions, delivery_notes"
+      )
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product delivery settings updated successfully",
+      product: data,
+    });
+  } catch (error) {
+    console.error("Update product delivery error:", error);
+    res.status(500).json({
+      error: "Failed to update delivery settings",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Check delivery availability for multiple products
+ */
+export const checkProductsDelivery = async (req, res) => {
+  try {
+    const { product_ids, pincode } = req.body;
+
+    if (!pincode || !/^\d{6}$/.test(pincode)) {
+      return res.status(400).json({
+        error: "Valid 6-digit pincode is required",
+      });
+    }
+
+    if (
+      !product_ids ||
+      !Array.isArray(product_ids) ||
+      product_ids.length === 0
+    ) {
+      return res.status(400).json({
+        error: "Product IDs array is required",
+      });
+    }
+
+    const deliveryResults = [];
+
+    for (const productId of product_ids) {
+      try {
+        // Get product basic info
+        const { data: product } = await supabase
+          .from("products")
+          .select("id, name, delivery_type, active")
+          .eq("id", productId)
+          .single();
+
+        if (!product || !product.active) {
+          deliveryResults.push({
+            product_id: productId,
+            product_name: product?.name || "Unknown",
+            can_deliver: false,
+            reason: "Product not found or inactive",
+          });
+          continue;
+        }
+
+        // Check delivery availability
+        const { data: canDeliver } = await supabase.rpc(
+          "can_deliver_to_pincode",
+          {
+            product_id: productId,
+            target_pincode: pincode,
+          }
+        );
+
+        deliveryResults.push({
+          product_id: productId,
+          product_name: product.name,
+          delivery_type: product.delivery_type,
+          can_deliver: canDeliver,
+          reason: canDeliver ? "Available" : "Not available in your area",
+        });
+      } catch (productError) {
+        console.error(`Error checking product ${productId}:`, productError);
+        deliveryResults.push({
+          product_id: productId,
+          can_deliver: false,
+          reason: "Error checking delivery",
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      pincode,
+      results: deliveryResults,
+      summary: {
+        total_products: product_ids.length,
+        deliverable: deliveryResults.filter((r) => r.can_deliver).length,
+        non_deliverable: deliveryResults.filter((r) => !r.can_deliver).length,
+      },
+    });
+  } catch (error) {
+    console.error("Check products delivery error:", error);
+    res.status(500).json({
+      error: "Failed to check delivery availability",
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Get products filtered by delivery availability to a pincode
+ */
+export const getProductsByDeliveryZone = async (req, res) => {
+  try {
+    const { pincode, category, limit = 20, offset = 0 } = req.query;
+
+    if (!pincode || !/^\d{6}$/.test(pincode)) {
+      return res.status(400).json({
+        error: "Valid 6-digit pincode is required",
+      });
+    }
+
+    // Get zones for this pincode
+    const { data: zones } = await supabase.rpc("get_zones_for_pincode", {
+      target_pincode: pincode,
+    });
+
+    if (!zones || zones.length === 0) {
+      return res.status(200).json({
+        success: true,
+        products: [],
+        message: "No delivery zones found for this pincode",
+        pincode,
+        zones: [],
+      });
+    }
+
+    const zoneIds = zones.map((z) => z.zone_id);
+
+    // Build query for deliverable products
+    let query = supabase
+      .from("products")
+      .select("*")
+      .eq("active", true)
+      .or(
+        `delivery_type.eq.nationwide,and(delivery_type.eq.zonal,allowed_zone_ids.ov.{${zoneIds.join(
+          ","
+        )}})`
+      )
+      .range(offset, offset + limit - 1);
+
+    // Add category filter if provided
+    if (category) {
+      query = query.eq("category", category);
+    }
+
+    const { data: products, error } = await query;
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Transform products
+    const transformedProducts = products.map((product) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      oldPrice: product.old_price,
+      rating: product.rating || 4.0,
+      reviews: product.review_count || 0,
+      discount: product.discount || 0,
+      image: product.image,
+      images: product.images,
+      inStock: product.in_stock,
+      popular: product.popular,
+      featured: product.featured,
+      category: product.category,
+      weight:
+        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+      brand: product.brand_name || "BigandBest",
+      shipping_amount: product.shipping_amount || 0,
+      delivery_type: product.delivery_type,
+      delivery_available: true,
+      created_at: product.created_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      products: transformedProducts,
+      pincode,
+      zones: zones,
+      total: transformedProducts.length,
+      category: category || "all",
+    });
+  } catch (error) {
+    console.error("Get products by delivery zone error:", error);
+    res.status(500).json({
+      error: "Failed to get products",
+      message: error.message,
+    });
   }
 };
 

@@ -58,6 +58,7 @@ import inventoryRoutes from "./routes/inventoryRoutes.js";
 import videoCardRoutes from "./routes/videoCardRoutes.js";
 import shopByStoreRoutes from "./routes/shopByStoreRoutes.js";
 import productSectionRoutes from "./routes/productSectionRoutes.js";
+import zoneRoutes from "./routes/zoneRoutes.js";
 import promoBannerRoutes from "./routes/promoBannerRoutes.js";
 import storeSectionMappingRoutes from "./routes/storeSectionMappingRoutes.js";
 import bulkWholesaleRoutes from "./routes/bulkWholesaleRoutes.js";
@@ -184,6 +185,8 @@ app.use("/api/cod-orders", (req, res, next) => {
   console.log('Request Body:', req.body);
   next();
 }, codOrderRoutes);
+app.use("/api/cod-orders", codOrderRoutes);
+app.use("/api/zones", zoneRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
