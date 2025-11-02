@@ -8,36 +8,50 @@ import {
   updateZone,
   deleteZone,
   validatePincode,
-  downloadSampleCSV,
+  downloadSampleExcel,
   getZoneStatistics,
 } from "../controller/zoneController.js";
 
 const router = express.Router();
 
-// Configure multer for CSV file uploads
+// Configure multer for Excel file uploads (with CSV fallback)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Accept CSV files
-    if (
-      file.mimetype === "text/csv" ||
-      file.mimetype === "application/csv" ||
-      file.mimetype === "application/vnd.ms-excel" ||
-      file.originalname.toLowerCase().endsWith(".csv")
-    ) {
+    // Accept Excel files (with CSV fallback)
+    const allowedMimes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+      "application/vnd.ms-excel", // .xls
+      "text/csv",
+      "application/csv",
+    ];
+    const allowedExtensions = [".xlsx", ".xls", ".csv"];
+
+    const hasValidMime = allowedMimes.includes(file.mimetype);
+    const hasValidExtension = allowedExtensions.some((ext) =>
+      file.originalname.toLowerCase().endsWith(ext)
+    );
+
+    if (hasValidMime || hasValidExtension) {
       cb(null, true);
     } else {
-      cb(new Error("Only CSV files are allowed"), false);
+      cb(
+        new Error(
+          "Only Excel (.xlsx, .xls) files are allowed (CSV supported for compatibility)"
+        ),
+        false
+      );
     }
   },
 });
 
-// CSV Operations
+// File Upload Operations
 router.post("/upload", upload.single("csv_file"), uploadZonePincodes);
-router.get("/sample-csv", downloadSampleCSV);
+router.get("/sample-excel", downloadSampleExcel);
+router.get("/sample-csv", downloadSampleExcel); // Backward compatibility
 
 // Zone CRUD Operations
 router.get("/statistics", getZoneStatistics);
@@ -62,11 +76,11 @@ router.use((error, req, res, next) => {
     }
   }
 
-  if (error.message === "Only CSV files are allowed") {
+  if (error.message.includes("Only Excel")) {
     return res.status(400).json({
       success: false,
       error: "Invalid file type",
-      message: "Only CSV files are allowed",
+      message: "Only Excel files are allowed (CSV supported for compatibility)",
     });
   }
 

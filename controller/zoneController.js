@@ -1,14 +1,15 @@
 import { supabase } from "../config/supabaseClient.js";
 import {
-  parseCSV,
+  parseExcel,
+  parseCSVText,
   validateZoneNames,
   groupByZones,
   validateFile,
-  generateSampleCSV,
-} from "../utils/csvParser.js";
+  generateSampleExcel,
+} from "../utils/excelParser.js";
 
 /**
- * Upload zones and pincodes from CSV file
+ * Upload zones and pincodes from Excel file
  */
 export const uploadZonePincodes = async (req, res) => {
   try {
@@ -24,13 +25,22 @@ export const uploadZonePincodes = async (req, res) => {
       });
     }
 
-    // Parse CSV
-    const parseResult = await parseCSV(file.buffer, ["zone_name", "pincode"]);
+    // Parse file (Excel or CSV)
+    const isCsv =
+      file.originalname && file.originalname.toLowerCase().endsWith(".csv");
+    let parseResult;
+    if (isCsv) {
+      // Use CSV text parser for plain CSV files
+      parseResult = await parseCSVText(file.buffer, ["zone_name", "pincode"]);
+    } else {
+      // Use Excel parser for .xlsx/.xls
+      parseResult = await parseExcel(file.buffer, ["zone_name", "pincode"]);
+    }
 
     if (parseResult.errors.length > 0) {
       return res.status(400).json({
         success: false,
-        error: "CSV parsing failed",
+        error: "File parsing failed",
         details: parseResult.errors,
         summary: {
           totalRows: parseResult.totalRows,
@@ -84,7 +94,7 @@ export const uploadZonePincodes = async (req, res) => {
               display_name: zoneName.replace(/([A-Z])/g, " $1").trim(),
               is_nationwide: false,
               is_active: true,
-              description: `Zone created from CSV upload on ${new Date().toISOString()}`,
+              description: `Zone created from Excel upload on ${new Date().toISOString()}`,
             })
             .select("id")
             .single();
@@ -164,7 +174,7 @@ export const uploadZonePincodes = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "CSV upload completed",
+      message: "Excel upload completed",
       results: uploadResults,
       summary: {
         totalZones: Object.keys(zoneGroups).length,
@@ -544,23 +554,26 @@ export const validatePincode = async (req, res) => {
 };
 
 /**
- * Download sample CSV
+ * Download sample Excel
  */
-export const downloadSampleCSV = async (req, res) => {
+export const downloadSampleExcel = async (req, res) => {
   try {
-    const csvContent = generateSampleCSV();
+    const excelBuffer = generateSampleExcel();
 
-    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
     res.setHeader(
       "Content-Disposition",
-      'attachment; filename="zone_pincodes_sample.csv"'
+      'attachment; filename="zone_pincodes_sample.xlsx"'
     );
-    res.status(200).send(csvContent);
+    res.status(200).send(excelBuffer);
   } catch (error) {
-    console.error("Download sample CSV error:", error);
+    console.error("Download sample Excel error:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to generate sample CSV",
+      error: "Failed to generate sample Excel",
       message: error.message,
     });
   }
