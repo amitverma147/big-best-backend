@@ -190,9 +190,9 @@ export const getFeaturedProducts = async (req, res) => {
       featured: product.featured,
       category: product.category,
       category_info: product.categories,
-      weight:
-        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
-      brand: product.brand_name || "BigandBest",
+      uom: product.uom,
+      brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -302,9 +302,9 @@ export const getProductsWithFilters = async (req, res) => {
       featured: product.featured,
       category: product.category,
       category_info: product.categories,
-      weight:
-        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
-      brand: product.brand_name || "BigandBest",
+      uom: product.uom,
+      brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
@@ -980,6 +980,9 @@ export const getProductsBySubcategory = async (req, res) => {
       category_info: product.categories,
       subcategory_id: product.subcategory_id,
       group_id: product.group_id,
+      uom: product.uom,
+      brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       weight:
         product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
       brand: product.brand_name || "BigandBest",
@@ -1042,9 +1045,9 @@ export const getProductsByGroup = async (req, res) => {
       category_info: product.categories,
       subcategory_id: product.subcategory_id,
       group_id: product.group_id,
-      weight:
-        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
-      brand: product.brand_name || "BigandBest",
+      uom: product.uom,
+      brand_name: product.brand_name,
+      shipping_amount: product.shipping_amount || 0,
       created_at: product.created_at,
     }));
 
