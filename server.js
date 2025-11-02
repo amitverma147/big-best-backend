@@ -178,7 +178,12 @@ app.use("/api/product-sections", productSectionRoutes);
 app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
-app.use("/api/cod-orders", codOrderRoutes);
+// COD Orders routes with logging middleware
+app.use("/api/cod-orders", (req, res, next) => {
+  console.log(`COD Orders API: ${req.method} ${req.originalUrl}`);
+  console.log('Request Body:', req.body);
+  next();
+}, codOrderRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {

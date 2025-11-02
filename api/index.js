@@ -65,6 +65,8 @@ import videoCardRoutes from "../routes/videoCardRoutes.js";
 import productSectionRoutes from "../routes/productSectionRoutes.js";
 import promoBannerRoutes from "../routes/promoBannerRoutes.js";
 import storeSectionMappingRoutes from "../routes/storeSectionMappingRoutes.js";
+import bulkWholesaleRoutes from "../routes/bulkWholesaleRoutes.js";
+import codOrderRoutes from "../routes/codOrderRoutes.js";
 
 const app = express();
 
@@ -158,6 +160,8 @@ app.use("/api/video-cards", videoCardRoutes);
 app.use("/api/product-sections", productSectionRoutes);
 app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
+app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
+app.use("/api/cod-orders", codOrderRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
