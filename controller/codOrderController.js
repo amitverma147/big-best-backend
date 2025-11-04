@@ -26,12 +26,12 @@ export const createCodOrder = async (req, res) => {
       });
     }
 
-    // Check if total price is >= 1000
-    if (parseFloat(product_total_price) < 1000) {
-      console.log('Validation Error: Amount below minimum');
+    // Check if total price is < 1000
+    if (parseFloat(product_total_price) >= 1000) {
+      console.log('Validation Error: Amount above maximum');
       return res.status(400).json({
         success: false,
-        error: "COD is only available for orders above ₹1000"
+        error: "COD is only available for orders below ₹1000"
       });
     }
 

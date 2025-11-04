@@ -63,6 +63,7 @@ import promoBannerRoutes from "./routes/promoBannerRoutes.js";
 import storeSectionMappingRoutes from "./routes/storeSectionMappingRoutes.js";
 import bulkWholesaleRoutes from "./routes/bulkWholesaleRoutes.js";
 import codOrderRoutes from "./routes/codOrderRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -187,6 +188,7 @@ app.use("/api/cod-orders", (req, res, next) => {
 }, codOrderRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
+app.use("/api/stock", stockRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
