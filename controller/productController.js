@@ -25,6 +25,8 @@ export const getAllProducts = async (req, res) => {
       image: product.image,
       images: product.images,
       inStock: product.in_stock,
+      stock: product.stock_quantity || product.stock || 0,
+      stockQuantity: product.stock_quantity || product.stock || 0,
       popular: product.popular,
       featured: product.featured,
       category: product.category,
