@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabaseClient.js";
+import * as deliveryValidationService from "./deliveryValidationService.js";
 
 export const getAllProducts = async (req, res) => {
   try {
@@ -1211,7 +1212,6 @@ export const checkProductDeliveryWithWarehouse = async (req, res) => {
     }
 
     // Use delivery validation service
-    const deliveryValidationService = require("./deliveryValidationService");
     const result = await deliveryValidationService.checkProductDelivery(
       product_id,
       pincode,

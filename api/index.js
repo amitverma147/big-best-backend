@@ -19,6 +19,8 @@ import warehouseRoute from "../routes/warehouseRoute.js";
 import productWarehouseRoute from "../routes/productWarehouseRoutes.js";
 import productsRoute from "../routes/productRoutes.js";
 import locationRoute from "../routes/locationRoutes.js";
+import locationSearchRoute from "../routes/locationRoute.js";
+import stockRoutes from "../routes/stockRoutes.js";
 import cartRoutes from "../routes/cartRoutes.js";
 import orderRoutes from "../routes/orderRoutes.js";
 import orderItemsRoutes from "../routes/orderItemsRoutes.js";
@@ -117,6 +119,8 @@ try {
   app.use("/api/productwarehouse", productWarehouseRoute);
   app.use("/api/productsroute", productsRoute);
   app.use("/api/locationsroute", locationRoute);
+  app.use("/api/location-search", locationSearchRoute);
+  app.use("/api/stock", stockRoutes);
   app.use("/api/cart", cartRoutes);
   app.use("/api/order", orderRoutes);
   app.use("/api/orderItems", orderItemsRoutes);
@@ -224,6 +228,52 @@ app.get("/api/test-warehouse", async (req, res) => {
   }
 });
 
+// Import validation route - tests all critical imports
+app.get("/api/test-imports", async (req, res) => {
+  const importTests = [];
+
+  try {
+    // Test all critical controller imports
+    const controllers = [
+      "../controller/warehouseController.js",
+      "../controller/productController.js",
+      "../controller/cartController.js",
+      "../controller/stockController.js",
+      "../controller/deliveryValidationService.js",
+    ];
+
+    for (const controller of controllers) {
+      try {
+        await import(controller);
+        importTests.push({ controller, status: "OK" });
+      } catch (error) {
+        importTests.push({
+          controller,
+          status: "ERROR",
+          error: error.message,
+        });
+      }
+    }
+
+    const allPassed = importTests.every((test) => test.status === "OK");
+
+    res.status(allPassed ? 200 : 500).json({
+      status: allPassed ? "OK" : "ERRORS_FOUND",
+      message: `${importTests.filter((t) => t.status === "OK").length}/${
+        importTests.length
+      } imports successful`,
+      tests: importTests,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "CRITICAL_ERROR",
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
 // 404 handler for API routes
 app.use("/api/*", (req, res) => {
   res.status(404).json({
@@ -233,9 +283,13 @@ app.use("/api/*", (req, res) => {
     available_endpoints: [
       "/api/warehouse",
       "/api/warehouses",
+      "/api/stock",
       "/api/cart",
       "/api/productsroute",
+      "/api/location-search",
       "/api/health",
+      "/api/test-imports",
+      "/api/test-warehouse",
     ],
   });
 });
