@@ -110,6 +110,7 @@ app.use(cookieParser());
 app.use("/api/business", authRoutes);
 app.use("/api/geo-address", geoAddressRoute);
 app.use("/api/warehouse", warehouseRoute);
+app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
 app.use("/api/productwarehouse", productWarehouseRoute);
 app.use("/api/productsroute", productsRoute);
 app.use("/api/locationsroute", locationRoute);
@@ -168,6 +169,47 @@ app.use("/api/zones", zoneRoutes);
 // Health check route
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "OK", message: "Server is healthy" });
+});
+
+// API documentation route
+app.get("/api", (req, res) => {
+  res.status(200).json({ 
+    status: "OK", 
+    message: "BBM Backend API", 
+    version: "1.0.0",
+    endpoints: {
+      warehouses: "/api/warehouse or /api/warehouses",
+      cart: "/api/cart",
+      products: "/api/productsroute",
+      health: "/api/health"
+    }
+  });
+});
+
+// 404 handler for API routes
+app.use("/api/*", (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: "API endpoint not found",
+    requested_path: req.originalUrl,
+    available_endpoints: [
+      "/api/warehouse",
+      "/api/warehouses", 
+      "/api/cart",
+      "/api/productsroute",
+      "/api/health"
+    ]
+  });
+});
+
+// Global error handler
+app.use((error, req, res, next) => {
+  console.error("Global error handler:", error);
+  res.status(500).json({
+    success: false,
+    error: "Internal server error",
+    message: error.message
+  });
 });
 
 // Export for Vercel
