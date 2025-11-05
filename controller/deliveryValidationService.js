@@ -1,4 +1,4 @@
-const { supabase } = require("../config/supabaseClient");
+import { supabase } from "../config/supabaseClient.js";
 
 /**
  * Delivery Validation Service
@@ -421,7 +421,7 @@ const checkMultipleProductsDelivery = async (products, pincode) => {
   }
 };
 
-module.exports = {
+export {
   checkProductDelivery,
   checkWarehouseStock,
   reserveProductStock,

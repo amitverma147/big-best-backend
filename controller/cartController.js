@@ -1,32 +1,42 @@
 // controllers/cartController.js
 import { supabase } from "../config/supabaseClient.js";
+import * as deliveryValidationService from "./deliveryValidationService.js";
 
 /**
  * @description Get all cart items for a specific user, joining product details.
  * @route GET /api/cart/:user_id
  */
 export const getCartItems = async (req, res) => {
-  const { user_id } = req.params;
+  try {
+    const { user_id } = req.params;
 
-  const { data, error } = await supabase
-    .from("cart_items")
-    .select("id, product_id, quantity, added_at, products(*)")
-    .eq("user_id", user_id);
+    if (!user_id) {
+      return res.status(400).json({ success: false, error: "User ID is required" });
+    }
 
-  if (error) {
-    console.error("Error fetching cart items:", error.message);
-    return res.status(500).json({ success: false, error: error.message });
+    const { data, error } = await supabase
+      .from("cart_items")
+      .select("id, product_id, quantity, added_at, products(*)")
+      .eq("user_id", user_id);
+
+    if (error) {
+      console.error("Error fetching cart items:", error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    // Restructure the data to be more convenient on the client-side
+    const cartItems = data.map((item) => ({
+      ...item.products, // Spread product details (name, price, etc.)
+      cart_item_id: item.id,
+      quantity: item.quantity,
+      added_at: item.added_at,
+    }));
+
+    return res.json({ success: true, cartItems });
+  } catch (error) {
+    console.error("Unexpected error in getCartItems:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
   }
-
-  // Restructure the data to be more convenient on the client-side
-  const cartItems = data.map((item) => ({
-    ...item.products, // Spread product details (name, price, etc.)
-    cart_item_id: item.id,
-    quantity: item.quantity,
-    added_at: item.added_at,
-  }));
-
-  return res.json({ success: true, cartItems });
 };
 
 /**
@@ -34,7 +44,8 @@ export const getCartItems = async (req, res) => {
  * @route POST /api/cart/add
  */
 export const addToCart = async (req, res) => {
-  const { user_id, product_id, quantity = 1 } = req.body;
+  try {
+    const { user_id, product_id, quantity = 1 } = req.body;
 
   // Validate input
   if (!user_id || !product_id) {
@@ -46,32 +57,6 @@ export const addToCart = async (req, res) => {
     return res
       .status(400)
       .json({ success: false, error: "Quantity must be a positive integer." });
-  }
-
-  // Check product stock availability
-  const { data: product, error: productError } = await supabase
-    .from("products")
-    .select("id, name, stock_quantity, stock, in_stock")
-    .eq("id", product_id)
-    .eq("active", true)
-    .single();
-
-  if (productError) {
-    console.error("Error fetching product:", productError.message);
-    return res.status(500).json({ success: false, error: productError.message });
-  }
-
-  if (!product) {
-    return res.status(404).json({ success: false, error: "Product not found or inactive." });
-  }
-
-  const currentStock = product.stock_quantity || product.stock || 0;
-  
-  if (currentStock < quantity) {
-    return res.status(400).json({ 
-      success: false, 
-      error: `Insufficient stock. Available: ${currentStock}, Requested: ${quantity}` 
-    });
   }
 
   // Check product stock availability
@@ -183,6 +168,10 @@ export const addToCart = async (req, res) => {
       message: `Added ${quantity} items to cart. Stock reduced from ${currentStock} to ${newStock}`
     });
   }
+  } catch (error) {
+    console.error("Unexpected error in addToCart:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
 };
 
 /**
@@ -190,8 +179,9 @@ export const addToCart = async (req, res) => {
  * @route PUT /api/cart/:cart_item_id
  */
 export const updateCartItem = async (req, res) => {
-  const { cart_item_id } = req.params;
-  const { quantity } = req.body;
+  try {
+    const { cart_item_id } = req.params;
+    const { quantity } = req.body;
 
   // Validate input: quantity must be a positive integer
   if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -279,6 +269,10 @@ export const updateCartItem = async (req, res) => {
     cartItem: data,
     message: `Cart updated. Stock adjusted from ${currentStock} to ${newStock}`
   });
+  } catch (error) {
+    console.error("Unexpected error in updateCartItem:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
 };
 
 /**
@@ -286,7 +280,8 @@ export const updateCartItem = async (req, res) => {
  * @route DELETE /api/cart/:cart_item_id
  */
 export const removeCartItem = async (req, res) => {
-  const { cart_item_id } = req.params;
+  try {
+    const { cart_item_id } = req.params;
 
   // First get the cart item details to restore stock
   const { data: cartItem, error: fetchError } = await supabase
@@ -348,6 +343,10 @@ export const removeCartItem = async (req, res) => {
     success: true, 
     message: `Item removed successfully. Stock restored from ${currentStock} to ${newStock}` 
   });
+  } catch (error) {
+    console.error("Unexpected error in removeCartItem:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
 };
 
 /**
@@ -355,7 +354,8 @@ export const removeCartItem = async (req, res) => {
  * @route DELETE /api/cart/clear/:user_id
  */
 export const clearCart = async (req, res) => {
-  const { user_id } = req.params;
+  try {
+    const { user_id } = req.params;
 
   // Get all cart items to restore stock
   const { data: cartItems, error: fetchError } = await supabase
@@ -408,6 +408,10 @@ export const clearCart = async (req, res) => {
     success: true, 
     message: `Cart cleared successfully. Stock restored for ${cartItems.length} items.` 
   });
+  } catch (error) {
+    console.error("Unexpected error in clearCart:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
 };
 
 /**
@@ -446,7 +450,6 @@ export const validateCartDelivery = async (req, res) => {
     }
 
     // Use delivery validation service for batch check
-    const deliveryValidationService = require("./deliveryValidationService");
     const validationResult =
       await deliveryValidationService.checkMultipleProductsDelivery(
         cartItems,
@@ -505,7 +508,6 @@ export const reserveCartStock = async (req, res) => {
       });
     }
 
-    const deliveryValidationService = require("./deliveryValidationService");
     const reservationResults = [];
 
     // Process each cart item for stock reservation
@@ -595,7 +597,6 @@ export const confirmCartStockDeduction = async (req, res) => {
       });
     }
 
-    const deliveryValidationService = require("./deliveryValidationService");
     const deductionResults = [];
 
     // Process each warehouse assignment for stock deduction
