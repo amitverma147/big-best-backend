@@ -1062,3 +1062,158 @@ export const getProductsByGroup = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+// Assign product to warehouses with stock
+export const assignProductToWarehouses = async (req, res) => {
+  try {
+    const { product_id } = req.params;
+    const { warehouse_assignments } = req.body;
+
+    if (!warehouse_assignments || !Array.isArray(warehouse_assignments)) {
+      return res.status(400).json({
+        success: false,
+        error: "Warehouse assignments array is required",
+      });
+    }
+
+    // Validate product exists
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id, name, delivery_type")
+      .eq("id", product_id)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({
+        success: false,
+        error: "Product not found",
+      });
+    }
+
+    // Process each warehouse assignment
+    const results = [];
+    for (const assignment of warehouse_assignments) {
+      const {
+        warehouse_id,
+        stock_quantity,
+        minimum_threshold = 0,
+        maximum_capacity,
+      } = assignment;
+
+      try {
+        // Check if assignment already exists
+        const { data: existing } = await supabase
+          .from("product_warehouse_stock")
+          .select("id")
+          .eq("product_id", product_id)
+          .eq("warehouse_id", warehouse_id)
+          .single();
+
+        if (existing) {
+          // Update existing assignment
+          const { data, error } = await supabase
+            .from("product_warehouse_stock")
+            .update({
+              stock_quantity,
+              minimum_threshold,
+              maximum_capacity,
+              last_updated_by: req.user?.id,
+            })
+            .eq("id", existing.id)
+            .select()
+            .single();
+
+          if (!error) {
+            results.push({ warehouse_id, action: "updated", data });
+          }
+        } else {
+          // Create new assignment
+          const { data, error } = await supabase
+            .from("product_warehouse_stock")
+            .insert({
+              product_id,
+              warehouse_id,
+              stock_quantity,
+              minimum_threshold,
+              maximum_capacity,
+              last_updated_by: req.user?.id,
+              last_restocked_at: new Date().toISOString(),
+            })
+            .select()
+            .single();
+
+          if (!error) {
+            results.push({ warehouse_id, action: "created", data });
+
+            // Log stock movement
+            await supabase.from("stock_movements").insert({
+              product_id,
+              warehouse_id,
+              movement_type: "inbound",
+              quantity: stock_quantity,
+              previous_stock: 0,
+              new_stock: stock_quantity,
+              reference_type: "assignment",
+              reason: "Product assigned to warehouse",
+              performed_by: req.user?.id,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing warehouse ${warehouse_id}:`, error);
+        results.push({
+          warehouse_id,
+          action: "failed",
+          error: error.message,
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Warehouse assignments processed",
+      results,
+      product_info: {
+        id: product.id,
+        name: product.name,
+        delivery_type: product.delivery_type,
+      },
+    });
+  } catch (error) {
+    console.error("Error in assignProductToWarehouses:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+// Check product delivery with warehouse logic
+export const checkProductDeliveryWithWarehouse = async (req, res) => {
+  try {
+    const { product_id, pincode, quantity = 1 } = req.body;
+
+    if (!product_id || !pincode) {
+      return res.status(400).json({
+        success: false,
+        error: "Product ID and pincode are required",
+      });
+    }
+
+    // Use delivery validation service
+    const deliveryValidationService = require("./deliveryValidationService");
+    const result = await deliveryValidationService.checkProductDelivery(
+      product_id,
+      pincode,
+      quantity
+    );
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error in checkProductDeliveryWithWarehouse:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};

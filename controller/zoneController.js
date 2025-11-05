@@ -204,7 +204,20 @@ export const getAllZones = async (req, res) => {
     } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = supabase.from("zone_stats").select("*", { count: "exact" });
+    // For warehouse management, we need delivery zones with state info
+    // Get delivery zones with their associated states from zone_pincodes
+    let query = supabase.from("delivery_zones").select(
+      `
+        id,
+        name,
+        display_name,
+        is_nationwide,
+        is_active,
+        description,
+        zone_pincodes!inner(state)
+      `,
+      { count: "exact" }
+    );
 
     // Apply filters
     if (search) {
@@ -227,9 +240,32 @@ export const getAllZones = async (req, res) => {
       });
     }
 
+    // Transform data to include a representative state for each zone
+    const transformedData =
+      data?.map((zone) => {
+        // Get unique states for this zone
+        const states = [
+          ...new Set(
+            zone.zone_pincodes?.map((zp) => zp.state).filter(Boolean) || []
+          ),
+        ];
+        const representativeState =
+          states.length > 0 ? states[0] : "Multiple States";
+
+        return {
+          id: zone.id,
+          name: zone.display_name || zone.name,
+          state: states.length === 1 ? states[0] : "Multiple States",
+          is_nationwide: zone.is_nationwide,
+          is_active: zone.is_active,
+          description: zone.description,
+          states: states, // Include all states for reference
+        };
+      }) || [];
+
     res.status(200).json({
       success: true,
-      zones: data,
+      data: transformedData,
       pagination: {
         total: count,
         page: parseInt(page),

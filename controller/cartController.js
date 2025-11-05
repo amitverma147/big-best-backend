@@ -38,10 +38,14 @@ export const addToCart = async (req, res) => {
 
   // Validate input
   if (!user_id || !product_id) {
-    return res.status(400).json({ success: false, error: "user_id and product_id are required." });
+    return res
+      .status(400)
+      .json({ success: false, error: "user_id and product_id are required." });
   }
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    return res.status(400).json({ success: false, error: "Quantity must be a positive integer." });
+    return res
+      .status(400)
+      .json({ success: false, error: "Quantity must be a positive integer." });
   }
 
   // Check if the item already exists in the cart
@@ -69,11 +73,13 @@ export const addToCart = async (req, res) => {
 
     if (updateError) {
       console.error("Error updating cart item quantity:", updateError.message);
-      return res.status(500).json({ success: false, error: updateError.message });
+      return res
+        .status(500)
+        .json({ success: false, error: updateError.message });
     }
     return res.status(200).json({ success: true, cartItem: updatedItem });
-  } 
-  
+  }
+
   // If item does not exist, insert a new row
   else {
     const { data: newItem, error: insertError } = await supabase
@@ -84,7 +90,9 @@ export const addToCart = async (req, res) => {
 
     if (insertError) {
       console.error("Error inserting new cart item:", insertError.message);
-      return res.status(500).json({ success: false, error: insertError.message });
+      return res
+        .status(500)
+        .json({ success: false, error: insertError.message });
     }
     return res.status(201).json({ success: true, cartItem: newItem });
   }
@@ -100,7 +108,9 @@ export const updateCartItem = async (req, res) => {
 
   // Validate input: quantity must be a positive integer
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    return res.status(400).json({ success: false, error: "Quantity must be a positive integer." });
+    return res
+      .status(400)
+      .json({ success: false, error: "Quantity must be a positive integer." });
   }
 
   const { data, error } = await supabase
@@ -112,13 +122,15 @@ export const updateCartItem = async (req, res) => {
 
   if (error) {
     // If the error indicates no rows were found, return a 404
-    if (error.code === 'PGRST116') {
-        return res.status(404).json({ success: false, error: "Cart item not found." });
+    if (error.code === "PGRST116") {
+      return res
+        .status(404)
+        .json({ success: false, error: "Cart item not found." });
     }
     console.error("Error updating cart item:", error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
-  
+
   return res.status(200).json({ success: true, cartItem: data });
 };
 
@@ -141,10 +153,14 @@ export const removeCartItem = async (req, res) => {
 
   // If count is 0, no item was deleted, meaning it wasn't found
   if (count === 0) {
-    return res.status(404).json({ success: false, error: "Cart item not found." });
+    return res
+      .status(404)
+      .json({ success: false, error: "Cart item not found." });
   }
 
-  return res.status(200).json({ success: true, message: "Item removed successfully." });
+  return res
+    .status(200)
+    .json({ success: true, message: "Item removed successfully." });
 };
 
 /**
@@ -164,5 +180,243 @@ export const clearCart = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 
-  return res.status(200).json({ success: true, message: "Cart cleared successfully." });
+  return res
+    .status(200)
+    .json({ success: true, message: "Cart cleared successfully." });
+};
+
+/**
+ * @description Validate cart items for delivery to specific pincode using warehouse logic
+ * @route POST /api/cart/validate-delivery
+ */
+export const validateCartDelivery = async (req, res) => {
+  try {
+    const { user_id, pincode } = req.body;
+
+    if (!user_id || !pincode) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID and pincode are required",
+      });
+    }
+
+    // Get cart items
+    const { data: cartItems, error: cartError } = await supabase
+      .from("cart_items")
+      .select("product_id, quantity")
+      .eq("user_id", user_id);
+
+    if (cartError) {
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch cart items",
+      });
+    }
+
+    if (!cartItems || cartItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Cart is empty",
+      });
+    }
+
+    // Use delivery validation service for batch check
+    const deliveryValidationService = require("./deliveryValidationService");
+    const validationResult =
+      await deliveryValidationService.checkMultipleProductsDelivery(
+        cartItems,
+        pincode
+      );
+
+    res.status(200).json({
+      success: true,
+      ...validationResult,
+      cart_summary: {
+        total_items: cartItems.length,
+        user_id,
+        pincode,
+      },
+    });
+  } catch (error) {
+    console.error("Error in validateCartDelivery:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * @description Reserve stock for cart items during checkout
+ * @route POST /api/cart/reserve-stock
+ */
+export const reserveCartStock = async (req, res) => {
+  try {
+    const { user_id, pincode, order_id } = req.body;
+
+    if (!user_id || !pincode || !order_id) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID, pincode, and order ID are required",
+      });
+    }
+
+    // Get cart items with product details
+    const { data: cartItems, error: cartError } = await supabase
+      .from("cart_items")
+      .select(
+        `
+        product_id, 
+        quantity,
+        products!inner(id, name, delivery_type)
+      `
+      )
+      .eq("user_id", user_id);
+
+    if (cartError || !cartItems || cartItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Cart is empty or failed to fetch items",
+      });
+    }
+
+    const deliveryValidationService = require("./deliveryValidationService");
+    const reservationResults = [];
+
+    // Process each cart item for stock reservation
+    for (const item of cartItems) {
+      try {
+        // First check delivery availability to get warehouse info
+        const deliveryCheck =
+          await deliveryValidationService.checkProductDelivery(
+            item.product_id,
+            pincode,
+            item.quantity
+          );
+
+        if (!deliveryCheck.deliverable) {
+          reservationResults.push({
+            product_id: item.product_id,
+            product_name: item.products.name,
+            success: false,
+            error: "Product not deliverable to this pincode",
+          });
+          continue;
+        }
+
+        // Reserve stock from the identified warehouse
+        const reservationResult =
+          await deliveryValidationService.reserveProductStock(
+            item.product_id,
+            deliveryCheck.source_warehouse.id,
+            item.quantity,
+            order_id
+          );
+
+        reservationResults.push({
+          product_id: item.product_id,
+          product_name: item.products.name,
+          warehouse_id: deliveryCheck.source_warehouse.id,
+          warehouse_name: deliveryCheck.source_warehouse.name,
+          quantity: item.quantity,
+          ...reservationResult,
+        });
+      } catch (error) {
+        console.error(
+          `Error reserving stock for product ${item.product_id}:`,
+          error
+        );
+        reservationResults.push({
+          product_id: item.product_id,
+          product_name: item.products.name,
+          success: false,
+          error: "Failed to reserve stock",
+        });
+      }
+    }
+
+    const allReserved = reservationResults.every((result) => result.success);
+
+    res.status(200).json({
+      success: true,
+      all_reserved: allReserved,
+      reservation_results: reservationResults,
+      order_id,
+      message: allReserved
+        ? "All items reserved successfully"
+        : "Some items could not be reserved",
+    });
+  } catch (error) {
+    console.error("Error in reserveCartStock:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+/**
+ * @description Confirm stock deduction after successful payment
+ * @route POST /api/cart/confirm-stock-deduction
+ */
+export const confirmCartStockDeduction = async (req, res) => {
+  try {
+    const { order_id, warehouse_assignments } = req.body;
+
+    if (!order_id || !warehouse_assignments) {
+      return res.status(400).json({
+        success: false,
+        error: "Order ID and warehouse assignments are required",
+      });
+    }
+
+    const deliveryValidationService = require("./deliveryValidationService");
+    const deductionResults = [];
+
+    // Process each warehouse assignment for stock deduction
+    for (const assignment of warehouse_assignments) {
+      try {
+        const deductionResult =
+          await deliveryValidationService.confirmStockDeduction(
+            assignment.product_id,
+            assignment.warehouse_id,
+            assignment.quantity,
+            order_id
+          );
+
+        deductionResults.push({
+          ...assignment,
+          ...deductionResult,
+        });
+      } catch (error) {
+        console.error(
+          `Error deducting stock for product ${assignment.product_id}:`,
+          error
+        );
+        deductionResults.push({
+          ...assignment,
+          success: false,
+          error: "Failed to deduct stock",
+        });
+      }
+    }
+
+    const allDeducted = deductionResults.every((result) => result.success);
+
+    res.status(200).json({
+      success: true,
+      all_deducted: allDeducted,
+      deduction_results: deductionResults,
+      order_id,
+      message: allDeducted
+        ? "All stock deducted successfully"
+        : "Some stock deductions failed",
+    });
+  } catch (error) {
+    console.error("Error in confirmCartStockDeduction:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
 };

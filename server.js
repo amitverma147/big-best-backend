@@ -126,7 +126,7 @@ app.use(cookieParser());
 
 app.use("/api/business", authRoutes);
 app.use("/api/geo-address", geoAddressRoute);
-app.use("/api/warehouse", warehouseRoute);
+app.use("/api/warehouses", warehouseRoute);
 app.use("/api/productwarehouse", productWarehouseRoute);
 app.use("/api/productsroute", productsRoute);
 app.use("/api/locationsroute", locationRoute);
@@ -180,11 +180,15 @@ app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 // COD Orders routes with logging middleware
-app.use("/api/cod-orders", (req, res, next) => {
-  console.log(`COD Orders API: ${req.method} ${req.originalUrl}`);
-  console.log('Request Body:', req.body);
-  next();
-}, codOrderRoutes);
+app.use(
+  "/api/cod-orders",
+  (req, res, next) => {
+    console.log(`COD Orders API: ${req.method} ${req.originalUrl}`);
+    console.log("Request Body:", req.body);
+    next();
+  },
+  codOrderRoutes
+);
 app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
 

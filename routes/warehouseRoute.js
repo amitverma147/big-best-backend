@@ -1,17 +1,30 @@
-import express from "express"
+import express from "express";
 const router = express.Router();
-import  {
+import {
   createWarehouse,
   updateWarehouse,
   deleteWarehouse,
   getAllWarehouses,
-  getSingleWarehouse
-} from '../controller/warehouseController.js'
+  getSingleWarehouse,
+  getWarehouseProducts,
+  addProductToWarehouse,
+  updateWarehouseProduct,
+  removeProductFromWarehouse,
+  getWarehouseHierarchy,
+  getChildWarehouses,
+} from "../controller/warehouseController.js";
 
-router.post('/add', createWarehouse);
-router.put('/update/:id', updateWarehouse);
-router.delete('/delete/:id', deleteWarehouse);
-router.get('/list', getAllWarehouses);
-router.get('/listsingle/:id', getSingleWarehouse);
+// RESTful warehouse routes
+router.get("/", getAllWarehouses);
+router.post("/", createWarehouse);
+router.get("/hierarchy", getWarehouseHierarchy);
+router.get("/:id", getSingleWarehouse);
+router.get("/:id/children", getChildWarehouses);
+router.get("/:id/products", getWarehouseProducts);
+router.post("/:id/products", addProductToWarehouse);
+router.put("/:id/products/:productId", updateWarehouseProduct);
+router.delete("/:id/products/:productId", removeProductFromWarehouse);
+router.put("/:id", updateWarehouse);
+router.delete("/:id", deleteWarehouse);
 
-export default router
+export default router;
