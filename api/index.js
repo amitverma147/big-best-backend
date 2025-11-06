@@ -304,5 +304,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Export for Vercel
-export default app;
+// Export a serverless-compatible request handler for Vercel
+// Vercel's Node runtime will call this default export with (req, res)
+export default function handler(req, res) {
+  return app(req, res);
+}
