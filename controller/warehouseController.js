@@ -4,14 +4,6 @@ import { supabase } from "../config/supabaseClient.js";
 const getWarehouses = async (req, res) => {
   console.log("getWarehouses called");
   try {
-    // Set CORS headers explicitly at the start
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
     const { type, is_active, include_stock_summary } = req.query;
     console.log("Query params:", { type, is_active, include_stock_summary });
 
@@ -106,8 +98,6 @@ const getWarehouses = async (req, res) => {
     });
   } catch (error) {
     console.error("Warehouse controller error:", error);
-    // Set CORS headers in error response too
-    res.header("Access-Control-Allow-Origin", "*");
     res.status(500).json({
       success: false,
       error: "Internal server error",
