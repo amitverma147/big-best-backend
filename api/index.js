@@ -107,74 +107,92 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Add CORS headers manually for all responses
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 app.use(express.json());
 app.use(cookieParser());
 
-// Mount all routes with error handling
-try {
-  app.use("/api/business", authRoutes);
-  app.use("/api/geo-address", geoAddressRoute);
-  app.use("/api/warehouse", warehouseRoute);
-  app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
-  app.use("/api/productwarehouse", productWarehouseRoute);
-  app.use("/api/productsroute", productsRoute);
-  app.use("/api/locationsroute", locationRoute);
-  app.use("/api/location-search", locationSearchRoute);
-  app.use("/api/stock", stockRoutes);
-  app.use("/api/cart", cartRoutes);
-  app.use("/api/order", orderRoutes);
-  app.use("/api/orderItems", orderItemsRoutes);
-  app.use("/api/check", checkCartAvailabilityRoute);
-  app.use("/api/payment", paymentRoutes);
-  app.use("/api/notifications", notificationRoutes);
-  app.use("/api/bnb", bnbRoutes);
-  app.use("/api/b&b-group", bnbGroupRoutes);
-  app.use("/api/b&b-group-product", bnbGroupProductRoutes);
-  app.use("/api/bbm-dost", bbmDostRoutes);
-  app.use("/api/brand", brandRoutes);
-  app.use("/api/product-brand", brandProductsRoutes);
-  app.use("/api/recommended-stores", recommendedStoreRoutes);
-  app.use("/api/product-recommended-stores", productRecommendedStoreRoutes);
-  app.use("/api/quick-pick", quickPickRoutes);
-  app.use("/api/quick-pick-group", quickPickGroupRoutes);
-  app.use("/api/quick-pick-group-product", quickPickGroupProductRoutes);
-  app.use("/api/saving-zone", savingZoneRoutes);
-  app.use("/api/saving-zone-group", savingZoneGroupRoutes);
-  app.use("/api/saving-zone-group-product", savingZoneGroupProductRoutes);
-  app.use("/api/stores", storeRoutes);
-  app.use("/api/sub-stores", subStoreRoutes);
-  app.use("/api/you-may-like-products", YouMayLikeProductRoutes);
-  app.use("/api/banner", addBannerRoutes);
-  app.use("/api/banner-groups", addBannerGroupRoutes);
-  app.use("/api/banner-group-products", addBannerGroupProductRoutes);
-  app.use("/api/unique-sections", uniqueSectionRoutes);
-  app.use("/api/unique-sections-products", uniqueSectionProductRoutes);
-  app.use("/api/user", profileRoutes);
-  app.use("/api/return-orders", returnOrderRoutes);
-  app.use("/api/wallet", walletRoutes);
-  app.use("/api/refund", refundRoutes);
-  app.use("/api/debug", debugRoutes);
-  app.use("/api/daily-deals", dailyDealsRoutes);
-  app.use("/api/daily-deals-product", dailyDealsProductRoutes);
-  app.use("/api/quick", quickFixRoutes);
-  app.use("/api/tracking", trackingRoutes);
-  app.use("/api/categories", categoryRoutes);
-  app.use("/api/bulk-orders", bulkOrderRoutes);
-  app.use("/api/bulk-products", bulkProductRoutes);
-  app.use("/api/product-variants", productVariantsRoutes);
-  app.use("/api/variants", variantRoutes);
-  app.use("/api/inventory", inventoryRoutes);
-  app.use("/api/shop-by-stores", shopByStoreRoutes);
-  app.use("/api/video-cards", videoCardRoutes);
-  app.use("/api/product-sections", productSectionRoutes);
-  app.use("/api/promo-banner", promoBannerRoutes);
-  app.use("/api/store-section-mappings", storeSectionMappingRoutes);
-  app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
-  app.use("/api/cod-orders", codOrderRoutes);
-  app.use("/api/zones", zoneRoutes);
-} catch (error) {
-  console.error("Error mounting routes:", error);
-}
+// Mount all routes
+app.use("/api/business", authRoutes);
+app.use("/api/geo-address", geoAddressRoute);
+app.use("/api/warehouse", warehouseRoute);
+app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
+app.use("/api/productwarehouse", productWarehouseRoute);
+app.use("/api/productsroute", productsRoute);
+app.use("/api/locationsroute", locationRoute);
+app.use("/api/location-search", locationSearchRoute);
+app.use("/api/stock", stockRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/order", orderRoutes);
+app.use("/api/orderItems", orderItemsRoutes);
+app.use("/api/check", checkCartAvailabilityRoute);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/bnb", bnbRoutes);
+app.use("/api/b&b-group", bnbGroupRoutes);
+app.use("/api/b&b-group-product", bnbGroupProductRoutes);
+app.use("/api/bbm-dost", bbmDostRoutes);
+app.use("/api/brand", brandRoutes);
+app.use("/api/product-brand", brandProductsRoutes);
+app.use("/api/recommended-stores", recommendedStoreRoutes);
+app.use("/api/product-recommended-stores", productRecommendedStoreRoutes);
+app.use("/api/quick-pick", quickPickRoutes);
+app.use("/api/quick-pick-group", quickPickGroupRoutes);
+app.use("/api/quick-pick-group-product", quickPickGroupProductRoutes);
+app.use("/api/saving-zone", savingZoneRoutes);
+app.use("/api/saving-zone-group", savingZoneGroupRoutes);
+app.use("/api/saving-zone-group-product", savingZoneGroupProductRoutes);
+app.use("/api/stores", storeRoutes);
+app.use("/api/sub-stores", subStoreRoutes);
+app.use("/api/you-may-like-products", YouMayLikeProductRoutes);
+app.use("/api/banner", addBannerRoutes);
+app.use("/api/banner-groups", addBannerGroupRoutes);
+app.use("/api/banner-group-products", addBannerGroupProductRoutes);
+app.use("/api/unique-sections", uniqueSectionRoutes);
+app.use("/api/unique-sections-products", uniqueSectionProductRoutes);
+app.use("/api/user", profileRoutes);
+app.use("/api/return-orders", returnOrderRoutes);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/refund", refundRoutes);
+app.use("/api/debug", debugRoutes);
+app.use("/api/daily-deals", dailyDealsRoutes);
+app.use("/api/daily-deals-product", dailyDealsProductRoutes);
+app.use("/api/quick", quickFixRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/bulk-orders", bulkOrderRoutes);
+app.use("/api/bulk-products", bulkProductRoutes);
+app.use("/api/product-variants", productVariantsRoutes);
+app.use("/api/variants", variantRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/shop-by-stores", shopByStoreRoutes);
+app.use("/api/video-cards", videoCardRoutes);
+app.use("/api/product-sections", productSectionRoutes);
+app.use("/api/promo-banner", promoBannerRoutes);
+app.use("/api/store-section-mappings", storeSectionMappingRoutes);
+app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
+app.use("/api/cod-orders", codOrderRoutes);
+app.use("/api/zones", zoneRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {

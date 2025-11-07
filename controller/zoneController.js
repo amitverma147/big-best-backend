@@ -195,6 +195,7 @@ export const uploadZonePincodes = async (req, res) => {
  * Get all zones with statistics
  */
 export const getAllZones = async (req, res) => {
+  console.log("getAllZones called");
   try {
     const {
       page = 1,
