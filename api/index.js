@@ -96,8 +96,7 @@ app.use(
   })
 );
 
-// Handle preflight globally
-app.options("*", cors());
+// Handle preflight globally - removed invalid pattern
 
 // Debug middleware to log Origin header
 app.use((req, res, next) => {
@@ -262,8 +261,31 @@ app.use("/api/*", (req, res) => {
   });
 });
 
-// Error handling middleware for specific routes
-app.use(["/api/zones", "/api/warehouses"], (error, req, res, next) => {
+// Error handling middleware for specific routes - removed array pattern
+app.use("/api/zones", (error, req, res, next) => {
+  console.error(`❌ Error in ${req.path}:`, error.message);
+
+  // Ensure CORS headers are set for errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  res.status(500).json({
+    success: false,
+    error: "Route error",
+    message: error.message,
+    path: req.path,
+  });
+});
+
+app.use("/api/warehouses", (error, req, res, next) => {
   console.error(`❌ Error in ${req.path}:`, error.message);
 
   // Ensure CORS headers are set for errors
