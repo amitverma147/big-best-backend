@@ -75,79 +75,19 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 
 const app = express();
 
-// Add debugging middleware
+// Basic logging middleware
 app.use((req, res, next) => {
-  const timestamp = new Date().toISOString();
-  const origin = req.headers.origin || "no-origin";
-  console.log(`${timestamp} - ${req.method} ${req.path} from ${origin}`);
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "https://big-best-admin.vercel.app",
-  "https://ecommerce-umber-five-95.vercel.app",
-  "https://admin-eight-flax.vercel.app",
-  "https://ecommerce-six-brown-12.vercel.app",
-  "https://www.bigbestmart.com",
-  "https://admin-eight-ruddy.vercel.app",
-  "https://big-best-frontend.vercel.app",
-];
-
-// Enhanced CORS configuration for testing - Allow all origins temporarily
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log(
-    `CORS Check: Origin = ${origin}, Method = ${req.method}, Path = ${req.path}`
-  );
-
-  // Check if origin is in allowed list
-  const isAllowed = !origin || allowedOrigins.includes(origin);
-
-  if (isAllowed) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-    res.header("Access-Control-Allow-Credentials", "true");
-  } else {
-    // For testing, allow all
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Credentials", "false");
-  }
-
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
-  );
-  res.header("Access-Control-Max-Age", "86400"); // 24 hours
-
-  // Handle preflight requests
-  if (req.method === "OPTIONS") {
-    console.log("Handling OPTIONS preflight request");
-    return res.status(200).end();
-  }
-
-  next();
-});
-
-// Backup CORS middleware with permissive settings
+// Simple CORS configuration - Allow all origins for testing
 app.use(
   cors({
-    origin: "*", // Allow all origins for testing
-    credentials: false, // Set to false when allowing all origins
+    origin: "*", // Allow all origins
+    credentials: false, // Must be false when origin is "*"
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-    ],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
 app.use(express.json());
@@ -213,156 +153,7 @@ app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
-// Zone routes with enhanced error handling
-try {
-  app.use("/api/zones", zoneRoutes);
-  console.log("✅ Zone routes mounted successfully");
-} catch (error) {
-  console.error("❌ Error mounting zone routes:", error);
-}
-
-// Enhanced fallback route for zones with better error handling
-app.get("/api/zones", async (req, res) => {
-  console.log("Zones endpoint called - fallback route");
-  try {
-    // Set CORS headers explicitly
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    const { getAllZones } = await import("../controller/zoneController.js");
-    console.log("Zone controller imported successfully");
-    await getAllZones(req, res);
-  } catch (error) {
-    console.error("Zone route fallback error:", error);
-    res.header("Access-Control-Allow-Origin", "*");
-    res.status(500).json({
-      success: false,
-      error: "Zone route fallback failed",
-      message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
-});
-
-// Warehouse routes with enhanced error handling
-try {
-  console.log("✅ Warehouse routes mounted successfully");
-} catch (error) {
-  console.error("❌ Error mounting warehouse routes:", error);
-}
-
-// Enhanced fallback route for warehouses with better error handling
-app.get("/api/warehouses", async (req, res) => {
-  console.log("Warehouses endpoint called - fallback route");
-  try {
-    // Set CORS headers explicitly
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-
-    const { getAllWarehouses } = await import(
-      "../controller/warehouseController.js"
-    );
-    console.log("Warehouse controller imported successfully");
-    await getAllWarehouses(req, res);
-  } catch (error) {
-    console.error("Warehouse route fallback error:", error);
-    res.header("Access-Control-Allow-Origin", "*");
-    res.status(500).json({
-      success: false,
-      error: "Warehouse route fallback failed",
-      message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
-});
-
-// Direct zone routes as backup
-app.get("/api/zones-direct", async (req, res) => {
-  try {
-    console.log("Direct zones route called");
-    const { getAllZones } = await import("../controller/zoneController.js");
-    await getAllZones(req, res);
-  } catch (error) {
-    console.error("Direct zones route error:", error);
-    res.status(500).json({
-      error: "Direct zones route failed",
-      message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
-});
-
-// Direct warehouse routes as backup
-app.get("/api/warehouses-direct", async (req, res) => {
-  try {
-    console.log("Direct warehouses route called");
-    const { getAllWarehouses } = await import(
-      "../controller/warehouseController.js"
-    );
-    await getAllWarehouses(req, res);
-  } catch (error) {
-    console.error("Direct warehouses route error:", error);
-    res.status(500).json({
-      error: "Direct warehouses route failed",
-      message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
-    });
-  }
-});
-
-// Test route for zones
-app.get("/api/test-zones", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.status(200).json({
-    message: "Zones endpoint is working",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Test route for warehouses
-app.get("/api/test-warehouses", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.status(200).json({
-    message: "Warehouses endpoint is working",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Simple zones test without database
-app.get("/api/zones-simple", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.status(200).json({
-    success: true,
-    data: [
-      { id: 1, name: "Test Zone 1", state: "Test State 1", is_active: true },
-      { id: 2, name: "Test Zone 2", state: "Test State 2", is_active: true },
-    ],
-    message: "Simple test zones without database access",
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// Simple warehouses test without database
-app.get("/api/warehouses-simple", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.status(200).json({
-    success: true,
-    data: [
-      { id: 1, name: "Test Warehouse 1", type: "main", is_active: true },
-      { id: 2, name: "Test Warehouse 2", type: "secondary", is_active: true },
-    ],
-    message: "Simple test warehouses without database access",
-    timestamp: new Date().toISOString(),
-  });
-});
+app.use("/api/zones", zoneRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {
@@ -388,90 +179,12 @@ app.get("/api", (req, res) => {
     deployed_on: "Vercel",
     endpoints: {
       warehouses: "/api/warehouse or /api/warehouses",
-      warehouses_direct: "/api/warehouses-direct (fallback)",
       zones: "/api/zones",
-      zones_direct: "/api/zones-direct (fallback)",
       cart: "/api/cart",
       products: "/api/productsroute",
       health: "/api/health",
-      test_zones: "/api/test-zones",
-      test_warehouses: "/api/test-warehouses",
-    },
-    debugging: {
-      cors_origins_allowed: "localhost, vercel.app domains, specific origins",
-      request_logging: "enabled",
-      error_handling: "enhanced",
     },
   });
-});
-
-// Debug route for warehouse testing
-app.get("/api/test-warehouse", async (req, res) => {
-  try {
-    // Import warehouse controller function
-    const { getAllWarehouses } = await import(
-      "../controller/warehouseController.js"
-    );
-
-    res.status(200).json({
-      status: "OK",
-      message: "Warehouse controller imported successfully",
-      controller_available: typeof getAllWarehouses === "function",
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "ERROR",
-      message: "Failed to import warehouse controller",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
-
-// Import validation route - tests all critical imports
-app.get("/api/test-imports", async (req, res) => {
-  const importTests = [];
-
-  try {
-    // Test all critical controller imports
-    const controllers = [
-      "../controller/warehouseController.js",
-      "../controller/productController.js",
-      "../controller/cartController.js",
-      "../controller/stockController.js",
-      "../controller/deliveryValidationService.js",
-    ];
-
-    for (const controller of controllers) {
-      try {
-        await import(controller);
-        importTests.push({ controller, status: "OK" });
-      } catch (error) {
-        importTests.push({
-          controller,
-          status: "ERROR",
-          error: error.message,
-        });
-      }
-    }
-
-    const allPassed = importTests.every((test) => test.status === "OK");
-
-    res.status(allPassed ? 200 : 500).json({
-      status: allPassed ? "OK" : "ERRORS_FOUND",
-      message: `${importTests.filter((t) => t.status === "OK").length}/${
-        importTests.length
-      } imports successful`,
-      tests: importTests,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "CRITICAL_ERROR",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
 });
 
 // 404 handler for API routes
@@ -485,18 +198,12 @@ app.use("/api/*", (req, res) => {
     available_endpoints: [
       "/api/warehouse",
       "/api/warehouses",
-      "/api/warehouses-direct",
       "/api/zones",
-      "/api/zones-direct",
       "/api/stock",
       "/api/cart",
       "/api/productsroute",
       "/api/location-search",
       "/api/health",
-      "/api/test-zones",
-      "/api/test-warehouses",
-      "/api/test-imports",
-      "/api/test-warehouse",
     ],
   });
 });
