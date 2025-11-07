@@ -197,18 +197,6 @@ export const uploadZonePincodes = async (req, res) => {
 export const getAllZones = async (req, res) => {
   console.log("getAllZones called");
   try {
-    // Set CORS headers explicitly at the start, matching Supabase's approach
-    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
-    );
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header("Access-Control-Allow-Credentials", "true");
-
     const {
       page = 1,
       limit = 50,
@@ -241,7 +229,7 @@ export const getAllZones = async (req, res) => {
         is_nationwide,
         is_active,
         description,
-        zone_pincodes!inner(state)
+        zone_pincodes!inner(pincode, city, state)
       `,
       { count: "exact" }
     );
@@ -312,18 +300,6 @@ export const getAllZones = async (req, res) => {
     });
   } catch (error) {
     console.error("Get zones error:", error);
-    
-    // Set CORS headers in error response too
-    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
-    );
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header("Access-Control-Allow-Credentials", "true");
 
     // Send a more detailed error response
     res.status(500).json({
@@ -333,7 +309,7 @@ export const getAllZones = async (req, res) => {
       details: error,
       code: error.code || "UNKNOWN_ERROR",
       hint: "Please check your database connection and try again",
-      statusCode: 500
+      statusCode: 500,
     });
   }
 };
