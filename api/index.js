@@ -76,23 +76,27 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 const app = express();
 
 // Debug middleware for problematic routes
-app.use(['/api/zones', '/api/warehouses'], (req, res, next) => {
+app.use(["/api/zones", "/api/warehouses"], (req, res, next) => {
   console.log(`🔍 ${req.method} ${req.path} - Starting request`);
   const originalSend = res.send;
   const originalJson = res.json;
   const originalStatus = res.status;
 
-  res.send = function(data) {
-    console.log(`✅ ${req.method} ${req.path} - Response sent with status ${res.statusCode}`);
+  res.send = function (data) {
+    console.log(
+      `✅ ${req.method} ${req.path} - Response sent with status ${res.statusCode}`
+    );
     return originalSend.call(this, data);
   };
 
-  res.json = function(data) {
-    console.log(`✅ ${req.method} ${req.path} - JSON response sent with status ${res.statusCode}`);
+  res.json = function (data) {
+    console.log(
+      `✅ ${req.method} ${req.path} - JSON response sent with status ${res.statusCode}`
+    );
     return originalJson.call(this, data);
   };
 
-  res.status = function(code) {
+  res.status = function (code) {
     console.log(`⚠️ ${req.method} ${req.path} - Setting status to ${code}`);
     return originalStatus.call(this, code);
   };
@@ -100,21 +104,27 @@ app.use(['/api/zones', '/api/warehouses'], (req, res, next) => {
   next();
 });
 
-// Simple CORS configuration - Allow all origins for testing
+// Simple CORS configuration - Allow specific origin for production
 app.use(
   cors({
-    origin: "*", // Allow all origins
-    credentials: false, // Must be false when origin is "*"
+    origin: "https://big-best-admin.vercel.app", // Specific frontend origin
+    credentials: true, // Allow credentials
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "apikey",
+      "x-client-info",
+    ],
   })
 );
 
-// Add CORS headers to all responses
+// Handle preflight globally
+app.options("*", cors());
+
+// Debug middleware to log Origin header
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  console.log("Origin:", req.headers.origin);
   next();
 });
 app.use(express.json());
@@ -189,7 +199,7 @@ app.get("/api/zones-test", (req, res) => {
   res.json({
     success: true,
     message: "Zones test endpoint working",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -198,7 +208,7 @@ app.get("/api/warehouses-test", (req, res) => {
   res.json({
     success: true,
     message: "Warehouses test endpoint working",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -217,7 +227,7 @@ app.get("/api", (req, res) => {
       products: "/api/productsroute",
       health: "/api/health",
       test_zones: "/api/zones-test",
-      test_warehouses: "/api/warehouses-test"
+      test_warehouses: "/api/warehouses-test",
     },
   });
 });
@@ -244,16 +254,13 @@ app.use("/api/*", (req, res) => {
 });
 
 // Error handling middleware for specific routes
-app.use(['/api/zones', '/api/warehouses'], (error, req, res, next) => {
+app.use(["/api/zones", "/api/warehouses"], (error, req, res, next) => {
   console.error(`❌ Error in ${req.path}:`, error.message);
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
   res.status(500).json({
     success: false,
     error: "Route error",
     message: error.message,
-    path: req.path
+    path: req.path,
   });
 });
 
