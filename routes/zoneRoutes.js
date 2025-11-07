@@ -64,21 +64,6 @@ router.delete("/:id", deleteZone);
 // Delivery Validation
 router.post("/validate-pincode", validatePincode);
 
-// Handle preflight requests explicitly
-router.options("*", (req, res) => {
-  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
-  );
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.status(200).send();
-});
-
 // Error handling middleware for multer
 router.use((error, req, res, next) => {
   // Ensure CORS headers are set for error responses
