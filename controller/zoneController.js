@@ -197,13 +197,17 @@ export const uploadZonePincodes = async (req, res) => {
 export const getAllZones = async (req, res) => {
   console.log("getAllZones called");
   try {
-    // Set CORS headers explicitly at the start
-    res.header("Access-Control-Allow-Origin", "*");
+    // Set CORS headers explicitly at the start, matching Supabase's approach
+    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
+    );
     res.header(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     );
-    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
 
     const {
       page = 1,
@@ -308,13 +312,28 @@ export const getAllZones = async (req, res) => {
     });
   } catch (error) {
     console.error("Get zones error:", error);
+    
     // Set CORS headers in error response too
-    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, Authorization, apikey"
+    );
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header("Access-Control-Allow-Credentials", "true");
+
+    // Send a more detailed error response
     res.status(500).json({
       success: false,
       error: "Failed to fetch zones",
       message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      details: error,
+      code: error.code || "UNKNOWN_ERROR",
+      hint: "Please check your database connection and try again",
+      statusCode: 500
     });
   }
 };
