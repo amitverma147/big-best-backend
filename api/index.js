@@ -75,35 +75,6 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 
 const app = express();
 
-// Debug middleware for problematic routes
-app.use(["/api/zones", "/api/warehouses"], (req, res, next) => {
-  console.log(`🔍 ${req.method} ${req.path} - Starting request`);
-  const originalSend = res.send;
-  const originalJson = res.json;
-  const originalStatus = res.status;
-
-  res.send = function (data) {
-    console.log(
-      `✅ ${req.method} ${req.path} - Response sent with status ${res.statusCode}`
-    );
-    return originalSend.call(this, data);
-  };
-
-  res.json = function (data) {
-    console.log(
-      `✅ ${req.method} ${req.path} - JSON response sent with status ${res.statusCode}`
-    );
-    return originalJson.call(this, data);
-  };
-
-  res.status = function (code) {
-    console.log(`⚠️ ${req.method} ${req.path} - Setting status to ${code}`);
-    return originalStatus.call(this, code);
-  };
-
-  next();
-});
-
 // Simple CORS configuration - Allow specific origins
 const allowedOrigins = [
   "https://big-best-admin.vercel.app", // Production frontend
