@@ -84,17 +84,7 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        console.log(`CORS blocked origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: "*", // Temporarily allow all origins for debugging
     credentials: true, // Allow credentials
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -121,6 +111,22 @@ app.use(cookieParser());
 app.use("/api/business", authRoutes);
 app.use("/api/geo-address", geoAddressRoute);
 app.use("/api/warehouse", warehouseRoute);
+
+// Add CORS middleware specifically for these problematic routes
+app.use("/api/warehouses", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
 app.use("/api/productwarehouse", productWarehouseRoute);
 app.use("/api/productsroute", productsRoute);
@@ -177,6 +183,22 @@ app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
+
+// Add CORS middleware specifically for zones route
+app.use("/api/zones", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 app.use("/api/zones", zoneRoutes);
 console.log("✅ Zone routes mounted at /api/zones");
 
@@ -243,11 +265,47 @@ app.use("/api/*", (req, res) => {
 // Error handling middleware for specific routes
 app.use(["/api/zones", "/api/warehouses"], (error, req, res, next) => {
   console.error(`❌ Error in ${req.path}:`, error.message);
+
+  // Ensure CORS headers are set for errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
   res.status(500).json({
     success: false,
     error: "Route error",
     message: error.message,
     path: req.path,
+  });
+});
+
+// Global error handler to ensure CORS headers
+app.use((error, req, res, next) => {
+  console.error("Global error handler:", error.message);
+
+  // Ensure CORS headers are set for all errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  res.status(500).json({
+    success: false,
+    error: "Internal server error",
+    message: error.message,
   });
 });
 
