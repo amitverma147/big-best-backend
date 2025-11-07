@@ -75,9 +75,28 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 
 const app = express();
 
-// Basic logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+// Debug middleware for problematic routes
+app.use(['/api/zones', '/api/warehouses'], (req, res, next) => {
+  console.log(`🔍 ${req.method} ${req.path} - Starting request`);
+  const originalSend = res.send;
+  const originalJson = res.json;
+  const originalStatus = res.status;
+
+  res.send = function(data) {
+    console.log(`✅ ${req.method} ${req.path} - Response sent with status ${res.statusCode}`);
+    return originalSend.call(this, data);
+  };
+
+  res.json = function(data) {
+    console.log(`✅ ${req.method} ${req.path} - JSON response sent with status ${res.statusCode}`);
+    return originalJson.call(this, data);
+  };
+
+  res.status = function(code) {
+    console.log(`⚠️ ${req.method} ${req.path} - Setting status to ${code}`);
+    return originalStatus.call(this, code);
+  };
+
   next();
 });
 
@@ -90,6 +109,14 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
+
+// Add CORS headers to all responses
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  next();
+});
 app.use(express.json());
 app.use(cookieParser());
 
@@ -154,18 +181,24 @@ app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
+console.log("✅ Zone routes mounted at /api/zones");
 
-// Health check route
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "Server is healthy",
-    environment: {
-      node_version: process.version,
-      platform: process.platform,
-      timestamp: new Date().toISOString(),
-      env_loaded: !!process.env.SUPABASE_URL,
-    },
+// Simple test endpoints for debugging CORS
+app.get("/api/zones-test", (req, res) => {
+  console.log("🧪 /api/zones-test called");
+  res.json({
+    success: true,
+    message: "Zones test endpoint working",
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get("/api/warehouses-test", (req, res) => {
+  console.log("🧪 /api/warehouses-test called");
+  res.json({
+    success: true,
+    message: "Warehouses test endpoint working",
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -183,6 +216,8 @@ app.get("/api", (req, res) => {
       cart: "/api/cart",
       products: "/api/productsroute",
       health: "/api/health",
+      test_zones: "/api/zones-test",
+      test_warehouses: "/api/warehouses-test"
     },
   });
 });
@@ -208,13 +243,17 @@ app.use("/api/*", (req, res) => {
   });
 });
 
-// Global error handler
-app.use((error, req, res, next) => {
-  console.error("Global error handler:", error);
+// Error handling middleware for specific routes
+app.use(['/api/zones', '/api/warehouses'], (error, req, res, next) => {
+  console.error(`❌ Error in ${req.path}:`, error.message);
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
   res.status(500).json({
     success: false,
-    error: "Internal server error",
+    error: "Route error",
     message: error.message,
+    path: req.path
   });
 });
 
