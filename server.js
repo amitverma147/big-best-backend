@@ -73,7 +73,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://big-best-admin.vercel.app", // Admin panel (without trailing slash)
-  "https://big-best-admin.vercel.app/", // Admin panel (with trailing slash)
+  "https://big-best-admin.vercel.app/", 
   "https://ecommerce-umber-five-95.vercel.app",
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
