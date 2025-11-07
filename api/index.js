@@ -75,13 +75,18 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 
 const app = express();
 
+// Add debugging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
   "http://localhost:5173",
   "http://localhost:5174",
   "https://big-best-admin.vercel.app",
-  "https://big-best-admin.vercel.app/",
   "https://ecommerce-umber-five-95.vercel.app",
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
@@ -90,8 +95,29 @@ const allowedOrigins = [
   "https://big-best-frontend.vercel.app",
 ];
 
+// Enhanced CORS configuration for Vercel
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    // Check if origin is in allowed list
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow any localhost for development
+    if (origin.includes("localhost")) {
+      return callback(null, true);
+    }
+
+    // Allow Vercel preview deployments
+    if (origin.includes("vercel.app")) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   exposedHeaders: ["Authorization"],
@@ -104,31 +130,10 @@ const corsOptions = {
     "Cache-Control",
     "X-File-Name",
   ],
+  optionsSuccessStatus: 200, // For legacy browser support
 };
 
 app.use(cors(corsOptions));
-
-// Add CORS headers manually for all responses
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
-  );
-  if (req.method === "OPTIONS") {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
 app.use(express.json());
 app.use(cookieParser());
 
@@ -194,6 +199,22 @@ app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
 
+// Test route for zones
+app.get("/api/test-zones", (req, res) => {
+  res.status(200).json({
+    message: "Zones endpoint is working",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Test route for warehouses
+app.get("/api/test-warehouses", (req, res) => {
+  res.status(200).json({
+    message: "Warehouses endpoint is working",
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check route
 app.get("/api/health", (req, res) => {
   res.status(200).json({
@@ -216,9 +237,12 @@ app.get("/api", (req, res) => {
     version: "1.0.0",
     endpoints: {
       warehouses: "/api/warehouse or /api/warehouses",
+      zones: "/api/zones",
       cart: "/api/cart",
       products: "/api/productsroute",
       health: "/api/health",
+      test_zones: "/api/test-zones",
+      test_warehouses: "/api/test-warehouses",
     },
   });
 });
