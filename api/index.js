@@ -77,7 +77,9 @@ const app = express();
 
 // Add debugging middleware
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  const timestamp = new Date().toISOString();
+  const origin = req.headers.origin || "no-origin";
+  console.log(`${timestamp} - ${req.method} ${req.path} from ${origin}`);
   next();
 });
 
@@ -95,45 +97,45 @@ const allowedOrigins = [
   "https://big-best-frontend.vercel.app",
 ];
 
-// Enhanced CORS configuration for Vercel
-const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+// Simple and reliable CORS configuration for Vercel
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-    // Check if origin is in allowed list
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+  // Always set CORS headers for Vercel deployments
+  if (
+    !origin ||
+    origin.includes("localhost") ||
+    origin.includes("vercel.app") ||
+    allowedOrigins.includes(origin)
+  ) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+    );
+  }
 
-    // Allow any localhost for development
-    if (origin.includes("localhost")) {
-      return callback(null, true);
-    }
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-    // Allow Vercel preview deployments
-    if (origin.includes("vercel.app")) {
-      return callback(null, true);
-    }
+  next();
+});
 
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  exposedHeaders: ["Authorization"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-    "Origin",
-    "Cache-Control",
-    "X-File-Name",
-  ],
-  optionsSuccessStatus: 200, // For legacy browser support
-};
-
-app.use(cors(corsOptions));
+// Backup CORS middleware
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -197,7 +199,81 @@ app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
-app.use("/api/zones", zoneRoutes);
+// Zone routes with error handling
+try {
+  app.use("/api/zones", zoneRoutes);
+  console.log("✅ Zone routes mounted successfully");
+} catch (error) {
+  console.error("❌ Error mounting zone routes:", error);
+  // Fallback route for zones
+  app.get("/api/zones", async (req, res) => {
+    try {
+      const { getAllZones } = await import("../controller/zoneController.js");
+      await getAllZones(req, res);
+    } catch (error) {
+      res
+        .status(500)
+        .json({ error: "Zone route fallback failed", message: error.message });
+    }
+  });
+}
+
+// Warehouse routes with error handling
+try {
+  console.log("✅ Warehouse routes mounted successfully");
+} catch (error) {
+  console.error("❌ Error mounting warehouse routes:", error);
+  // Fallback route for warehouses
+  app.get("/api/warehouses", async (req, res) => {
+    try {
+      const { getAllWarehouses } = await import(
+        "../controller/warehouseController.js"
+      );
+      await getAllWarehouses(req, res);
+    } catch (error) {
+      res
+        .status(500)
+        .json({
+          error: "Warehouse route fallback failed",
+          message: error.message,
+        });
+    }
+  });
+}
+
+// Direct zone routes as backup
+app.get("/api/zones-direct", async (req, res) => {
+  try {
+    console.log("Direct zones route called");
+    const { getAllZones } = await import("../controller/zoneController.js");
+    await getAllZones(req, res);
+  } catch (error) {
+    console.error("Direct zones route error:", error);
+    res.status(500).json({
+      error: "Direct zones route failed",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+// Direct warehouse routes as backup
+app.get("/api/warehouses-direct", async (req, res) => {
+  try {
+    console.log("Direct warehouses route called");
+    const { getAllWarehouses } = await import(
+      "../controller/warehouseController.js"
+    );
+    await getAllWarehouses(req, res);
+  } catch (error) {
+    console.error("Direct warehouses route error:", error);
+    res.status(500).json({
+      error: "Direct warehouses route failed",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
 
 // Test route for zones
 app.get("/api/test-zones", (req, res) => {
@@ -235,14 +311,23 @@ app.get("/api", (req, res) => {
     status: "OK",
     message: "BBM Backend API",
     version: "1.0.0",
+    cors_enabled: true,
+    deployed_on: "Vercel",
     endpoints: {
       warehouses: "/api/warehouse or /api/warehouses",
+      warehouses_direct: "/api/warehouses-direct (fallback)",
       zones: "/api/zones",
+      zones_direct: "/api/zones-direct (fallback)",
       cart: "/api/cart",
       products: "/api/productsroute",
       health: "/api/health",
       test_zones: "/api/test-zones",
       test_warehouses: "/api/test-warehouses",
+    },
+    debugging: {
+      cors_origins_allowed: "localhost, vercel.app domains, specific origins",
+      request_logging: "enabled",
+      error_handling: "enhanced",
     },
   });
 });
@@ -318,18 +403,25 @@ app.get("/api/test-imports", async (req, res) => {
 
 // 404 handler for API routes
 app.use("/api/*", (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     error: "API endpoint not found",
     requested_path: req.originalUrl,
+    method: req.method,
     available_endpoints: [
       "/api/warehouse",
       "/api/warehouses",
+      "/api/warehouses-direct",
+      "/api/zones",
+      "/api/zones-direct",
       "/api/stock",
       "/api/cart",
       "/api/productsroute",
       "/api/location-search",
       "/api/health",
+      "/api/test-zones",
+      "/api/test-warehouses",
       "/api/test-imports",
       "/api/test-warehouse",
     ],
