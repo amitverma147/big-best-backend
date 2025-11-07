@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables - try multiple paths for Vercel
+// Fixed path-to-regexp errors by removing invalid route patterns
 dotenv.config();
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
