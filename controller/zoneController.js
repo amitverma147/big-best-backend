@@ -197,13 +197,35 @@ export const uploadZonePincodes = async (req, res) => {
 export const getAllZones = async (req, res) => {
   console.log("getAllZones called");
   try {
+    // Set CORS headers explicitly at the start
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
     const {
       page = 1,
       limit = 50,
       search = "",
       active_only = "false",
     } = req.query;
+
+    console.log("Query params:", { page, limit, search, active_only });
+
     const offset = (page - 1) * limit;
+
+    // Check if supabase is available
+    if (!supabase) {
+      console.error("Supabase client not available");
+      return res.status(500).json({
+        success: false,
+        error: "Database connection not available",
+      });
+    }
+
+    console.log("Building query...");
 
     // For warehouse management, we need delivery zones with state info
     // Get delivery zones with their associated states from zone_pincodes
@@ -232,12 +254,21 @@ export const getAllZones = async (req, res) => {
     // Apply pagination
     query = query.range(offset, offset + limit - 1);
 
+    console.log("Executing database query...");
     const { data, error, count } = await query;
 
+    console.log("Database response:", {
+      dataCount: data?.length,
+      error: error?.message,
+      totalCount: count,
+    });
+
     if (error) {
+      console.error("Database error details:", error);
       return res.status(500).json({
         success: false,
         error: error.message,
+        details: error,
       });
     }
 
@@ -264,6 +295,7 @@ export const getAllZones = async (req, res) => {
         };
       }) || [];
 
+    console.log("Sending response with", transformedData.length, "zones");
     res.status(200).json({
       success: true,
       data: transformedData,
@@ -276,10 +308,13 @@ export const getAllZones = async (req, res) => {
     });
   } catch (error) {
     console.error("Get zones error:", error);
+    // Set CORS headers in error response too
+    res.header("Access-Control-Allow-Origin", "*");
     res.status(500).json({
       success: false,
       error: "Failed to fetch zones",
       message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };

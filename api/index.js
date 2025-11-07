@@ -97,43 +97,48 @@ const allowedOrigins = [
   "https://big-best-frontend.vercel.app",
 ];
 
-// Simple and reliable CORS configuration for Vercel
+// Enhanced CORS configuration for testing - Allow all origins temporarily
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+  console.log(
+    `CORS Check: Origin = ${origin}, Method = ${req.method}, Path = ${req.path}`
+  );
 
-  // Always set CORS headers for Vercel deployments
-  if (
-    !origin ||
-    origin.includes("localhost") ||
-    origin.includes("vercel.app") ||
-    allowedOrigins.includes(origin)
-  ) {
-    res.header("Access-Control-Allow-Origin", origin || "*");
-    res.header("Access-Control-Allow-Credentials", "true");
-    res.header(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
-    );
-  }
+  // For testing purposes - allow all origins
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Max-Age", "86400"); // 24 hours
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling OPTIONS preflight request");
     return res.status(200).end();
   }
 
   next();
 });
 
-// Backup CORS middleware
+// Backup CORS middleware with permissive settings
 app.use(
   cors({
-    origin: true,
-    credentials: true,
+    origin: "*", // Allow all origins for testing
+    credentials: false, // Set to false when allowing all origins
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
   })
 );
 app.use(express.json());
@@ -199,47 +204,76 @@ app.use("/api/promo-banner", promoBannerRoutes);
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
-// Zone routes with error handling
+// Zone routes with enhanced error handling
 try {
   app.use("/api/zones", zoneRoutes);
   console.log("✅ Zone routes mounted successfully");
 } catch (error) {
   console.error("❌ Error mounting zone routes:", error);
-  // Fallback route for zones
-  app.get("/api/zones", async (req, res) => {
-    try {
-      const { getAllZones } = await import("../controller/zoneController.js");
-      await getAllZones(req, res);
-    } catch (error) {
-      res
-        .status(500)
-        .json({ error: "Zone route fallback failed", message: error.message });
-    }
-  });
 }
 
-// Warehouse routes with error handling
+// Enhanced fallback route for zones with better error handling
+app.get("/api/zones", async (req, res) => {
+  console.log("Zones endpoint called - fallback route");
+  try {
+    // Set CORS headers explicitly
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    const { getAllZones } = await import("../controller/zoneController.js");
+    console.log("Zone controller imported successfully");
+    await getAllZones(req, res);
+  } catch (error) {
+    console.error("Zone route fallback error:", error);
+    res.header("Access-Control-Allow-Origin", "*");
+    res.status(500).json({
+      success: false,
+      error: "Zone route fallback failed",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
+
+// Warehouse routes with enhanced error handling
 try {
   console.log("✅ Warehouse routes mounted successfully");
 } catch (error) {
   console.error("❌ Error mounting warehouse routes:", error);
-  // Fallback route for warehouses
-  app.get("/api/warehouses", async (req, res) => {
-    try {
-      const { getAllWarehouses } = await import(
-        "../controller/warehouseController.js"
-      );
-      await getAllWarehouses(req, res);
-    } catch (error) {
-      res
-        .status(500)
-        .json({
-          error: "Warehouse route fallback failed",
-          message: error.message,
-        });
-    }
-  });
 }
+
+// Enhanced fallback route for warehouses with better error handling
+app.get("/api/warehouses", async (req, res) => {
+  console.log("Warehouses endpoint called - fallback route");
+  try {
+    // Set CORS headers explicitly
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    const { getAllWarehouses } = await import(
+      "../controller/warehouseController.js"
+    );
+    console.log("Warehouse controller imported successfully");
+    await getAllWarehouses(req, res);
+  } catch (error) {
+    console.error("Warehouse route fallback error:", error);
+    res.header("Access-Control-Allow-Origin", "*");
+    res.status(500).json({
+      success: false,
+      error: "Warehouse route fallback failed",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
+  }
+});
 
 // Direct zone routes as backup
 app.get("/api/zones-direct", async (req, res) => {
@@ -277,6 +311,7 @@ app.get("/api/warehouses-direct", async (req, res) => {
 
 // Test route for zones
 app.get("/api/test-zones", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
   res.status(200).json({
     message: "Zones endpoint is working",
     timestamp: new Date().toISOString(),
@@ -285,8 +320,37 @@ app.get("/api/test-zones", (req, res) => {
 
 // Test route for warehouses
 app.get("/api/test-warehouses", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
   res.status(200).json({
     message: "Warehouses endpoint is working",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Simple zones test without database
+app.get("/api/zones-simple", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.status(200).json({
+    success: true,
+    data: [
+      { id: 1, name: "Test Zone 1", state: "Test State 1", is_active: true },
+      { id: 2, name: "Test Zone 2", state: "Test State 2", is_active: true },
+    ],
+    message: "Simple test zones without database access",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Simple warehouses test without database
+app.get("/api/warehouses-simple", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.status(200).json({
+    success: true,
+    data: [
+      { id: 1, name: "Test Warehouse 1", type: "main", is_active: true },
+      { id: 2, name: "Test Warehouse 2", type: "secondary", is_active: true },
+    ],
+    message: "Simple test warehouses without database access",
     timestamp: new Date().toISOString(),
   });
 });

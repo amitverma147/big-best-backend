@@ -2,9 +2,29 @@ import { supabase } from "../config/supabaseClient.js";
 
 // Get all warehouses
 const getWarehouses = async (req, res) => {
+  console.log("getWarehouses called");
   try {
-    const { type, is_active, include_stock_summary } = req.query;
+    // Set CORS headers explicitly at the start
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
+    const { type, is_active, include_stock_summary } = req.query;
+    console.log("Query params:", { type, is_active, include_stock_summary });
+
+    // Check if supabase is available
+    if (!supabase) {
+      console.error("Supabase client not available");
+      return res.status(500).json({
+        success: false,
+        error: "Database connection not available",
+      });
+    }
+
+    console.log("Building warehouse query...");
     let query = supabase.from("warehouses").select("*");
 
     if (type) {
@@ -17,20 +37,25 @@ const getWarehouses = async (req, res) => {
 
     query = query.order("name", { ascending: true });
 
+    console.log("Executing warehouse database query...");
     const { data: warehouses, error } = await query;
 
     if (error) {
-      console.error("Supabase error:", error);
+      console.error("Warehouse database error:", error);
       return res.status(500).json({
         success: false,
         error: "Failed to fetch warehouses",
         details: error.message,
+        errorDetails: error,
       });
     }
+
+    console.log("Fetched", warehouses?.length || 0, "warehouses");
 
     // Fetch zone information for each warehouse
     const warehousesWithZones = await Promise.all(
       warehouses?.map(async (warehouse) => {
+        console.log("Fetching zones for warehouse:", warehouse.id);
         const { data: warehouseZones, error: zonesError } = await supabase
           .from("warehouse_zones")
           .select(
@@ -80,10 +105,14 @@ const getWarehouses = async (req, res) => {
       count: warehousesWithZones.length,
     });
   } catch (error) {
-    console.error("Server error:", error);
+    console.error("Warehouse controller error:", error);
+    // Set CORS headers in error response too
+    res.header("Access-Control-Allow-Origin", "*");
     res.status(500).json({
       success: false,
       error: "Internal server error",
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
