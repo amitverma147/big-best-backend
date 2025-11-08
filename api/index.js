@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables - try multiple paths for Vercel
+// Fixed path-to-regexp errors by removing invalid route patterns
 dotenv.config();
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
@@ -75,118 +76,148 @@ import zoneRoutes from "../routes/zoneRoutes.js";
 
 const app = express();
 
+// Simple CORS configuration - Allow specific origins
 const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "https://big-best-admin.vercel.app",
-  "https://big-best-admin.vercel.app/",
-  "https://ecommerce-umber-five-95.vercel.app",
-  "https://admin-eight-flax.vercel.app",
-  "https://ecommerce-six-brown-12.vercel.app",
-  "https://www.bigbestmart.com",
-  "https://admin-eight-ruddy.vercel.app",
-  "https://big-best-frontend.vercel.app",
+  "https://big-best-admin.vercel.app", // Production frontend
+  "http://localhost:5173", // Development frontend
+  "http://localhost:3000", // Alternative dev port
 ];
 
-const corsOptions = {
-  origin: allowedOrigins,
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  exposedHeaders: ["Authorization"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-Requested-With",
-    "Accept",
-    "Origin",
-    "Cache-Control",
-    "X-File-Name",
-  ],
-};
+app.use(
+  cors({
+    origin: "*", // Temporarily allow all origins for debugging
+    credentials: true, // Allow credentials
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "apikey",
+      "x-client-info",
+    ],
+  })
+);
 
-app.use(cors(corsOptions));
+// Handle preflight globally - removed invalid pattern
+
+// Debug middleware to log Origin header
+app.use((req, res, next) => {
+  console.log("Origin:", req.headers.origin);
+  next();
+});
 app.use(express.json());
 app.use(cookieParser());
 
-// Mount all routes with error handling
-try {
-  app.use("/api/business", authRoutes);
-  app.use("/api/geo-address", geoAddressRoute);
-  app.use("/api/warehouse", warehouseRoute);
-  app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
-  app.use("/api/productwarehouse", productWarehouseRoute);
-  app.use("/api/productsroute", productsRoute);
-  app.use("/api/locationsroute", locationRoute);
-  app.use("/api/location-search", locationSearchRoute);
-  app.use("/api/stock", stockRoutes);
-  app.use("/api/cart", cartRoutes);
-  app.use("/api/order", orderRoutes);
-  app.use("/api/orderItems", orderItemsRoutes);
-  app.use("/api/check", checkCartAvailabilityRoute);
-  app.use("/api/payment", paymentRoutes);
-  app.use("/api/notifications", notificationRoutes);
-  app.use("/api/bnb", bnbRoutes);
-  app.use("/api/b&b-group", bnbGroupRoutes);
-  app.use("/api/b&b-group-product", bnbGroupProductRoutes);
-  app.use("/api/bbm-dost", bbmDostRoutes);
-  app.use("/api/brand", brandRoutes);
-  app.use("/api/product-brand", brandProductsRoutes);
-  app.use("/api/recommended-stores", recommendedStoreRoutes);
-  app.use("/api/product-recommended-stores", productRecommendedStoreRoutes);
-  app.use("/api/quick-pick", quickPickRoutes);
-  app.use("/api/quick-pick-group", quickPickGroupRoutes);
-  app.use("/api/quick-pick-group-product", quickPickGroupProductRoutes);
-  app.use("/api/saving-zone", savingZoneRoutes);
-  app.use("/api/saving-zone-group", savingZoneGroupRoutes);
-  app.use("/api/saving-zone-group-product", savingZoneGroupProductRoutes);
-  app.use("/api/stores", storeRoutes);
-  app.use("/api/sub-stores", subStoreRoutes);
-  app.use("/api/you-may-like-products", YouMayLikeProductRoutes);
-  app.use("/api/banner", addBannerRoutes);
-  app.use("/api/banner-groups", addBannerGroupRoutes);
-  app.use("/api/banner-group-products", addBannerGroupProductRoutes);
-  app.use("/api/unique-sections", uniqueSectionRoutes);
-  app.use("/api/unique-sections-products", uniqueSectionProductRoutes);
-  app.use("/api/user", profileRoutes);
-  app.use("/api/return-orders", returnOrderRoutes);
-  app.use("/api/wallet", walletRoutes);
-  app.use("/api/refund", refundRoutes);
-  app.use("/api/debug", debugRoutes);
-  app.use("/api/daily-deals", dailyDealsRoutes);
-  app.use("/api/daily-deals-product", dailyDealsProductRoutes);
-  app.use("/api/quick", quickFixRoutes);
-  app.use("/api/tracking", trackingRoutes);
-  app.use("/api/categories", categoryRoutes);
-  app.use("/api/bulk-orders", bulkOrderRoutes);
-  app.use("/api/bulk-products", bulkProductRoutes);
-  app.use("/api/product-variants", productVariantsRoutes);
-  app.use("/api/variants", variantRoutes);
-  app.use("/api/inventory", inventoryRoutes);
-  app.use("/api/shop-by-stores", shopByStoreRoutes);
-  app.use("/api/video-cards", videoCardRoutes);
-  app.use("/api/product-sections", productSectionRoutes);
-  app.use("/api/promo-banner", promoBannerRoutes);
-  app.use("/api/store-section-mappings", storeSectionMappingRoutes);
-  app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
-  app.use("/api/cod-orders", codOrderRoutes);
-  app.use("/api/zones", zoneRoutes);
-} catch (error) {
-  console.error("Error mounting routes:", error);
-}
+// Mount all routes
+app.use("/api/business", authRoutes);
+app.use("/api/geo-address", geoAddressRoute);
+app.use("/api/warehouse", warehouseRoute);
 
-// Health check route
-app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "Server is healthy",
-    environment: {
-      node_version: process.version,
-      platform: process.platform,
-      timestamp: new Date().toISOString(),
-      env_loaded: !!process.env.SUPABASE_URL,
-    },
+// Add CORS middleware specifically for these problematic routes
+app.use("/api/warehouses", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+app.use("/api/warehouses", warehouseRoute); // Add alias for plural form
+app.use("/api/productwarehouse", productWarehouseRoute);
+app.use("/api/productsroute", productsRoute);
+app.use("/api/locationsroute", locationRoute);
+app.use("/api/location-search", locationSearchRoute);
+app.use("/api/stock", stockRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/order", orderRoutes);
+app.use("/api/orderItems", orderItemsRoutes);
+app.use("/api/check", checkCartAvailabilityRoute);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/bnb", bnbRoutes);
+app.use("/api/bnb-group", bnbGroupRoutes);
+app.use("/api/bnb-group-product", bnbGroupProductRoutes);
+app.use("/api/bbm-dost", bbmDostRoutes);
+app.use("/api/brand", brandRoutes);
+app.use("/api/product-brand", brandProductsRoutes);
+app.use("/api/recommended-stores", recommendedStoreRoutes);
+app.use("/api/product-recommended-stores", productRecommendedStoreRoutes);
+app.use("/api/quick-pick", quickPickRoutes);
+app.use("/api/quick-pick-group", quickPickGroupRoutes);
+app.use("/api/quick-pick-group-product", quickPickGroupProductRoutes);
+app.use("/api/saving-zone", savingZoneRoutes);
+app.use("/api/saving-zone-group", savingZoneGroupRoutes);
+app.use("/api/saving-zone-group-product", savingZoneGroupProductRoutes);
+app.use("/api/stores", storeRoutes);
+app.use("/api/sub-stores", subStoreRoutes);
+app.use("/api/you-may-like-products", YouMayLikeProductRoutes);
+app.use("/api/banner", addBannerRoutes);
+app.use("/api/banner-groups", addBannerGroupRoutes);
+app.use("/api/banner-group-products", addBannerGroupProductRoutes);
+app.use("/api/unique-sections", uniqueSectionRoutes);
+app.use("/api/unique-sections-products", uniqueSectionProductRoutes);
+app.use("/api/user", profileRoutes);
+app.use("/api/return-orders", returnOrderRoutes);
+app.use("/api/wallet", walletRoutes);
+app.use("/api/refund", refundRoutes);
+app.use("/api/debug", debugRoutes);
+app.use("/api/daily-deals", dailyDealsRoutes);
+app.use("/api/daily-deals-product", dailyDealsProductRoutes);
+app.use("/api/quick", quickFixRoutes);
+app.use("/api/tracking", trackingRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/bulk-orders", bulkOrderRoutes);
+app.use("/api/bulk-products", bulkProductRoutes);
+app.use("/api/product-variants", productVariantsRoutes);
+app.use("/api/variants", variantRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/shop-by-stores", shopByStoreRoutes);
+app.use("/api/video-cards", videoCardRoutes);
+app.use("/api/product-sections", productSectionRoutes);
+app.use("/api/promo-banner", promoBannerRoutes);
+app.use("/api/store-section-mappings", storeSectionMappingRoutes);
+app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
+app.use("/api/cod-orders", codOrderRoutes);
+
+// Add CORS middleware specifically for zones route
+app.use("/api/zones", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+app.use("/api/zones", zoneRoutes);
+console.log("✅ Zone routes mounted at /api/zones");
+
+// Simple test endpoints for debugging CORS
+app.get("/api/zones-test", (req, res) => {
+  console.log("🧪 /api/zones-test called");
+  res.json({
+    success: true,
+    message: "Zones test endpoint working",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/api/warehouses-test", (req, res) => {
+  console.log("🧪 /api/warehouses-test called");
+  res.json({
+    success: true,
+    message: "Warehouses test endpoint working",
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -196,107 +227,104 @@ app.get("/api", (req, res) => {
     status: "OK",
     message: "BBM Backend API",
     version: "1.0.0",
+    cors_enabled: true,
+    deployed_on: "Vercel",
     endpoints: {
       warehouses: "/api/warehouse or /api/warehouses",
+      zones: "/api/zones",
       cart: "/api/cart",
       products: "/api/productsroute",
       health: "/api/health",
+      test_zones: "/api/zones-test",
+      test_warehouses: "/api/warehouses-test",
     },
   });
 });
 
-// Debug route for warehouse testing
-app.get("/api/test-warehouse", async (req, res) => {
-  try {
-    // Import warehouse controller function
-    const { getAllWarehouses } = await import(
-      "../controller/warehouseController.js"
-    );
-
-    res.status(200).json({
-      status: "OK",
-      message: "Warehouse controller imported successfully",
-      controller_available: typeof getAllWarehouses === "function",
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "ERROR",
-      message: "Failed to import warehouse controller",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
-
-// Import validation route - tests all critical imports
-app.get("/api/test-imports", async (req, res) => {
-  const importTests = [];
-
-  try {
-    // Test all critical controller imports
-    const controllers = [
-      "../controller/warehouseController.js",
-      "../controller/productController.js",
-      "../controller/cartController.js",
-      "../controller/stockController.js",
-      "../controller/deliveryValidationService.js",
-    ];
-
-    for (const controller of controllers) {
-      try {
-        await import(controller);
-        importTests.push({ controller, status: "OK" });
-      } catch (error) {
-        importTests.push({
-          controller,
-          status: "ERROR",
-          error: error.message,
-        });
-      }
-    }
-
-    const allPassed = importTests.every((test) => test.status === "OK");
-
-    res.status(allPassed ? 200 : 500).json({
-      status: allPassed ? "OK" : "ERRORS_FOUND",
-      message: `${importTests.filter((t) => t.status === "OK").length}/${
-        importTests.length
-      } imports successful`,
-      tests: importTests,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "CRITICAL_ERROR",
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
-
 // 404 handler for API routes
 app.use("/api/*", (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
   res.status(404).json({
     success: false,
     error: "API endpoint not found",
     requested_path: req.originalUrl,
+    method: req.method,
     available_endpoints: [
       "/api/warehouse",
       "/api/warehouses",
+      "/api/zones",
       "/api/stock",
       "/api/cart",
       "/api/productsroute",
       "/api/location-search",
       "/api/health",
-      "/api/test-imports",
-      "/api/test-warehouse",
     ],
   });
 });
 
-// Global error handler
+// Error handling middleware for specific routes - removed array pattern
+app.use("/api/zones", (error, req, res, next) => {
+  console.error(`❌ Error in ${req.path}:`, error.message);
+
+  // Ensure CORS headers are set for errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  res.status(500).json({
+    success: false,
+    error: "Route error",
+    message: error.message,
+    path: req.path,
+  });
+});
+
+app.use("/api/warehouses", (error, req, res, next) => {
+  console.error(`❌ Error in ${req.path}:`, error.message);
+
+  // Ensure CORS headers are set for errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
+  res.status(500).json({
+    success: false,
+    error: "Route error",
+    message: error.message,
+    path: req.path,
+  });
+});
+
+// Global error handler to ensure CORS headers
 app.use((error, req, res, next) => {
-  console.error("Global error handler:", error);
+  console.error("Global error handler:", error.message);
+
+  // Ensure CORS headers are set for all errors
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
   res.status(500).json({
     success: false,
     error: "Internal server error",

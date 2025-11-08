@@ -66,6 +66,18 @@ router.post("/validate-pincode", validatePincode);
 
 // Error handling middleware for multer
 router.use((error, req, res, next) => {
+  // Ensure CORS headers are set for error responses
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+
   if (error instanceof multer.MulterError) {
     if (error.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({

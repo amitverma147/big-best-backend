@@ -195,6 +195,7 @@ export const uploadZonePincodes = async (req, res) => {
  * Get all zones with statistics
  */
 export const getAllZones = async (req, res) => {
+  console.log("getAllZones called");
   try {
     const {
       page = 1,
@@ -202,7 +203,21 @@ export const getAllZones = async (req, res) => {
       search = "",
       active_only = "false",
     } = req.query;
+
+    console.log("Query params:", { page, limit, search, active_only });
+
     const offset = (page - 1) * limit;
+
+    // Check if supabase is available
+    if (!supabase) {
+      console.error("Supabase client not available");
+      return res.status(500).json({
+        success: false,
+        error: "Database connection not available",
+      });
+    }
+
+    console.log("Building query...");
 
     // For warehouse management, we need delivery zones with state info
     // Get delivery zones with their associated states from zone_pincodes
@@ -214,7 +229,7 @@ export const getAllZones = async (req, res) => {
         is_nationwide,
         is_active,
         description,
-        zone_pincodes!inner(state)
+        zone_pincodes!inner(pincode, city, state)
       `,
       { count: "exact" }
     );
@@ -231,12 +246,21 @@ export const getAllZones = async (req, res) => {
     // Apply pagination
     query = query.range(offset, offset + limit - 1);
 
+    console.log("Executing database query...");
     const { data, error, count } = await query;
 
+    console.log("Database response:", {
+      dataCount: data?.length,
+      error: error?.message,
+      totalCount: count,
+    });
+
     if (error) {
+      console.error("Database error details:", error);
       return res.status(500).json({
         success: false,
         error: error.message,
+        details: error,
       });
     }
 
@@ -263,6 +287,7 @@ export const getAllZones = async (req, res) => {
         };
       }) || [];
 
+    console.log("Sending response with", transformedData.length, "zones");
     res.status(200).json({
       success: true,
       data: transformedData,
@@ -275,10 +300,16 @@ export const getAllZones = async (req, res) => {
     });
   } catch (error) {
     console.error("Get zones error:", error);
+
+    // Send a more detailed error response
     res.status(500).json({
       success: false,
       error: "Failed to fetch zones",
       message: error.message,
+      details: error,
+      code: error.code || "UNKNOWN_ERROR",
+      hint: "Please check your database connection and try again",
+      statusCode: 500,
     });
   }
 };

@@ -73,7 +73,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://big-best-admin.vercel.app", // Admin panel (without trailing slash)
-  "https://big-best-admin.vercel.app/", // Admin panel (with trailing slash)
+  "https://big-best-admin.vercel.app/", 
   "https://ecommerce-umber-five-95.vercel.app",
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
@@ -118,7 +118,31 @@ const corsOptions = {
   credentials: true,
 })); */
 
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin like mobile apps or curl
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    exposedHeaders: ["Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+      "Cache-Control",
+      "X-File-Name",
+    ],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
