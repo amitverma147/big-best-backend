@@ -284,12 +284,24 @@ export const getWarehousesForProduct = async (req, res) => {
 
     const { data, error } = await supabase
       .from("product_warehouse")
-      .select("warehouse_id, warehouses (id, name, address, pincode)")
+      .select("warehouse_id, warehouses (id, name, address, location)")
       .eq("product_id", product_id);
 
     if (error) return res.status(500).json({ error: error.message });
 
-    res.status(200).json(data);
+    // Map location to pincode for frontend compatibility
+    const transformedData =
+      data?.map((item) => ({
+        ...item,
+        warehouses: item.warehouses
+          ? {
+              ...item.warehouses,
+              pincode: item.warehouses.location,
+            }
+          : null,
+      })) || [];
+
+    res.status(200).json(transformedData);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
