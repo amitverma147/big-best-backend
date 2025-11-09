@@ -64,6 +64,7 @@ import storeSectionMappingRoutes from "./routes/storeSectionMappingRoutes.js";
 import bulkWholesaleRoutes from "./routes/bulkWholesaleRoutes.js";
 import codOrderRoutes from "./routes/codOrderRoutes.js";
 import stockRoutes from "./routes/stockRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -216,6 +217,7 @@ app.use(
 app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Health check route
 app.get("/api/health", (req, res) => {

@@ -6,7 +6,22 @@ export const getProductVariants = async (req, res) => {
     const { productId } = req.params;
     const { data, error } = await supabase
       .from("product_variants")
-      .select("*")
+      .select(`
+        id,
+        product_id,
+        variant_name,
+        variant_price,
+        variant_old_price,
+        variant_discount,
+        variant_stock,
+        variant_weight,
+        variant_unit,
+        shipping_amount,
+        variant_image_url,
+        is_default,
+        active,
+        created_at
+      `)
       .eq("product_id", productId)
       .eq("active", true)
       .order("variant_price", { ascending: true });
@@ -14,6 +29,8 @@ export const getProductVariants = async (req, res) => {
     if (error) {
       return res.status(500).json({ error: error.message });
     }
+
+
 
     res.status(200).json({
       success: true,
@@ -26,9 +43,6 @@ export const getProductVariants = async (req, res) => {
 };
 
 // Add variant to product
-// CRITICAL: This function manages ONLY variant-specific pricing
-// It must NEVER update main product prices (price, old_price, discount)
-// PRICE ISOLATION: Variant prices are completely independent from main product prices
 export const addProductVariant = async (req, res) => {
   try {
     const { productId } = req.params;
@@ -42,37 +56,58 @@ export const addProductVariant = async (req, res) => {
       variant_unit,
       shipping_amount,
       is_default,
+      variant_image_url,
     } = req.body;
 
-    // IMPORTANT: Only insert into product_variants table
-    // DO NOT touch the main products table pricing fields
+    // Validation
+    if (!variant_name || !variant_price || !variant_weight || !variant_unit) {
+      return res.status(400).json({ 
+        error: "Required fields: variant_name, variant_price, variant_weight, variant_unit" 
+      });
+    }
+
+    if (isNaN(variant_price) || variant_price <= 0) {
+      return res.status(400).json({ error: "Invalid variant price" });
+    }
+
+    // Check if product exists
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("id", productId)
+      .single();
+
+    if (productError || !product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    // Insert variant
     const { data, error } = await supabase
       .from("product_variants")
       .insert({
         product_id: productId,
-        variant_name,
-        variant_price: parseFloat(variant_price), // Ensure proper type
+        variant_name: variant_name.trim(),
+        variant_price: parseFloat(variant_price),
         variant_old_price: variant_old_price ? parseFloat(variant_old_price) : null,
         variant_discount: variant_discount ? parseInt(variant_discount) : 0,
         variant_stock: variant_stock ? parseInt(variant_stock) : 0,
-        variant_weight,
-        variant_unit,
+        variant_weight: variant_weight.trim(),
+        variant_unit: variant_unit.trim(),
         shipping_amount: shipping_amount ? parseFloat(shipping_amount) : 0,
         is_default: Boolean(is_default),
+        variant_image_url: variant_image_url?.trim() || null,
         active: true
       })
       .select();
 
     if (error) {
-      console.error('Error adding variant:', error);
       return res.status(500).json({ error: error.message });
     }
 
-    // SUCCESS: Variant added without affecting main product pricing
     res.status(201).json({
       success: true,
       variant: data[0],
-      message: "Variant added successfully. Main product pricing remains unchanged."
+      message: "Variant added successfully"
     });
   } catch (error) {
     console.error('Server error in addProductVariant:', error);
@@ -81,59 +116,76 @@ export const addProductVariant = async (req, res) => {
 };
 
 // Update product variant
-// CRITICAL: This function updates ONLY variant-specific pricing  
-// It must NEVER modify main product prices (price, old_price, discount)
-// PRICE ISOLATION: Variant updates are completely independent from main product prices
 export const updateProductVariant = async (req, res) => {
   try {
     const { variantId } = req.params;
     const updateData = req.body;
 
-    // SECURITY: Remove any main product pricing fields if accidentally included
-    const sanitizedData = { ...updateData };
-    delete sanitizedData.price; // Remove main product price
-    delete sanitizedData.old_price; // Remove main product old_price
-    delete sanitizedData.discount; // Remove main product discount
-    delete sanitizedData.product_id; // Prevent product_id changes
-    
-    // Ensure proper data types for variant pricing
-    if (sanitizedData.variant_price) {
-      sanitizedData.variant_price = parseFloat(sanitizedData.variant_price);
-    }
-    if (sanitizedData.variant_old_price) {
-      sanitizedData.variant_old_price = parseFloat(sanitizedData.variant_old_price);
-    }
-    if (sanitizedData.variant_discount) {
-      sanitizedData.variant_discount = parseInt(sanitizedData.variant_discount);
-    }
-    if (sanitizedData.variant_stock) {
-      sanitizedData.variant_stock = parseInt(sanitizedData.variant_stock);
+    if (!variantId) {
+      return res.status(400).json({ error: "Variant ID is required" });
     }
 
-    // IMPORTANT: Only update product_variants table
+    // Check if variant exists
+    const { data: existingVariant, error: checkError } = await supabase
+      .from("product_variants")
+      .select("id")
+      .eq("id", variantId)
+      .single();
+
+    if (checkError || !existingVariant) {
+      return res.status(404).json({ error: "Variant not found" });
+    }
+
+    // Sanitize and validate data
+    const sanitizedData = { ...updateData };
+    delete sanitizedData.id;
+    delete sanitizedData.product_id;
+    delete sanitizedData.created_at;
+    
+    // Validate and convert data types
+    if (sanitizedData.variant_price !== undefined) {
+      const price = parseFloat(sanitizedData.variant_price);
+      if (isNaN(price) || price <= 0) {
+        return res.status(400).json({ error: "Invalid variant price" });
+      }
+      sanitizedData.variant_price = price;
+    }
+    
+    if (sanitizedData.variant_old_price !== undefined) {
+      sanitizedData.variant_old_price = sanitizedData.variant_old_price ? parseFloat(sanitizedData.variant_old_price) : null;
+    }
+    
+    if (sanitizedData.variant_discount !== undefined) {
+      sanitizedData.variant_discount = parseInt(sanitizedData.variant_discount) || 0;
+    }
+    
+    if (sanitizedData.variant_stock !== undefined) {
+      sanitizedData.variant_stock = parseInt(sanitizedData.variant_stock) || 0;
+    }
+
+    if (sanitizedData.variant_name) {
+      sanitizedData.variant_name = sanitizedData.variant_name.trim();
+    }
+
+    if (sanitizedData.variant_image_url) {
+      sanitizedData.variant_image_url = sanitizedData.variant_image_url.trim();
+    }
+
+    // Update variant
     const { data, error } = await supabase
       .from("product_variants")
-      .update({ 
-        ...sanitizedData, 
-        updated_at: new Date().toISOString()
-      })
+      .update(sanitizedData)
       .eq("id", variantId)
       .select();
 
     if (error) {
-      console.error('Error updating variant:', error);
       return res.status(500).json({ error: error.message });
     }
 
-    if (!data || data.length === 0) {
-      return res.status(404).json({ error: "Variant not found" });
-    }
-
-    // SUCCESS: Variant updated without affecting main product pricing
     res.status(200).json({
       success: true,
       variant: data[0],
-      message: "Variant updated successfully. Main product pricing remains unchanged."
+      message: "Variant updated successfully"
     });
   } catch (error) {
     console.error('Server error in updateProductVariant:', error);
@@ -146,9 +198,25 @@ export const deleteProductVariant = async (req, res) => {
   try {
     const { variantId } = req.params;
 
+    if (!variantId) {
+      return res.status(400).json({ error: "Variant ID is required" });
+    }
+
+    // Check if variant exists
+    const { data: existingVariant, error: checkError } = await supabase
+      .from("product_variants")
+      .select("id")
+      .eq("id", variantId)
+      .single();
+
+    if (checkError || !existingVariant) {
+      return res.status(404).json({ error: "Variant not found" });
+    }
+
+    // Soft delete by setting active to false
     const { error } = await supabase
       .from("product_variants")
-      .delete()
+      .update({ active: false })
       .eq("id", variantId);
 
     if (error) {
@@ -157,9 +225,10 @@ export const deleteProductVariant = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Variant deleted successfully",
+      message: "Variant deleted successfully"
     });
   } catch (error) {
+    console.error('Server error in deleteProductVariant:', error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
