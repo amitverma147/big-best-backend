@@ -363,6 +363,52 @@ const createWarehouse = async (req, res) => {
         });
       }
 
+      // For division warehouses, also validate that pincodes belong to the parent zonal warehouse
+      const { data: parentZonalPincodes, error: parentPincodeError } =
+        await supabase
+          .from("warehouse_zones")
+          .select(
+            `
+          delivery_zones (
+            zone_pincodes (
+              pincode
+            )
+          )
+        `
+          )
+          .eq("warehouse_id", parent_warehouse_id)
+          .eq("is_active", true);
+
+      if (parentPincodeError) {
+        return res.status(500).json({
+          success: false,
+          error:
+            "Failed to validate pincode assignments against parent warehouse",
+        });
+      }
+
+      // Extract pincodes served by the parent zonal warehouse
+      const parentPincodes = new Set();
+      parentZonalPincodes?.forEach((wz) => {
+        wz.delivery_zones?.zone_pincodes?.forEach((zp) => {
+          parentPincodes.add(zp.pincode);
+        });
+      });
+
+      // Validate that all assigned pincodes are served by the parent zonal warehouse
+      const invalidParentPincodes = pincode_assignments.filter(
+        (assignment) => !parentPincodes.has(assignment.pincode)
+      );
+
+      if (invalidParentPincodes.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `The following pincodes are not served by the parent zonal warehouse: ${invalidParentPincodes
+            .map((p) => p.pincode)
+            .join(", ")}`,
+        });
+      }
+
       // Check for pincode conflicts (no two divisions can serve same pincode)
       for (const assignment of pincode_assignments) {
         const { data: existing, error: conflictError } = await supabase
@@ -1044,10 +1090,10 @@ const getZonalWarehousePincodes = async (req, res) => {
   try {
     const { warehouseId } = req.params;
 
-    // For division warehouse creation, return all pincodes from all zonal warehouses
-    // The warehouseId parameter is kept for backward compatibility but not used for filtering
+    // For division warehouse creation, return pincodes from the specific zonal warehouse
+    // This ensures division warehouses can only select pincodes served by their parent zonal warehouse
 
-    // Get all pincodes served by ALL zonal warehouses through their zones
+    // Get all pincodes served by the SPECIFIC zonal warehouse through its zones
     const { data: zonePincodes, error } = await supabase
       .from("warehouse_zones")
       .select(
@@ -1063,6 +1109,7 @@ const getZonalWarehousePincodes = async (req, res) => {
         )
       `
       )
+      .eq("warehouse_id", warehouseId)
       .eq("is_active", true);
 
     if (error) {
