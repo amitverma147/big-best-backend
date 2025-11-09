@@ -229,7 +229,8 @@ export const getAllZones = async (req, res) => {
         is_nationwide,
         is_active,
         description,
-        zone_pincodes!inner(pincode, city, state)
+        created_at,
+        zone_pincodes(pincode, city, state)
       `,
       { count: "exact" }
     );
@@ -268,10 +269,9 @@ export const getAllZones = async (req, res) => {
     const transformedData =
       data?.map((zone) => {
         // Get unique states for this zone
+        const pincodes = zone.zone_pincodes || [];
         const states = [
-          ...new Set(
-            zone.zone_pincodes?.map((zp) => zp.state).filter(Boolean) || []
-          ),
+          ...new Set(pincodes.map((zp) => zp.state).filter(Boolean) || []),
         ];
         const representativeState =
           states.length > 0 ? states[0] : "Multiple States";
@@ -279,11 +279,14 @@ export const getAllZones = async (req, res) => {
         return {
           id: zone.id,
           name: zone.display_name || zone.name,
+          display_name: zone.display_name,
           state: states.length === 1 ? states[0] : "Multiple States",
           is_nationwide: zone.is_nationwide,
           is_active: zone.is_active,
           description: zone.description,
+          pincode_count: pincodes.length,
           states: states, // Include all states for reference
+          created_at: zone.created_at,
         };
       }) || [];
 
