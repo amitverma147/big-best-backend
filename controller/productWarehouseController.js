@@ -32,7 +32,7 @@ export const createProductWithWarehouse = async (req, res) => {
       store_id,
       delivery_type = "nationwide",
       // Warehouse management fields
-      warehouse_mapping_type = "central",
+      warehouse_mapping_type = "nationwide",
       assigned_warehouse_ids = [],
       primary_warehouses = [],
       fallback_warehouses = [],
@@ -104,25 +104,29 @@ export const createProductWithWarehouse = async (req, res) => {
     // Step 2: Handle warehouse assignments based on mapping type
     let warehouseAssignments = [];
 
-    if (
-      warehouse_mapping_type === "central" ||
-      warehouse_mapping_type === "nationwide"
-    ) {
-      // Auto-assign to central warehouse
-      const centralWarehouse = await getCentralWarehouse();
-      if (centralWarehouse) {
-        warehouseAssignments.push({
-          warehouse_id: centralWarehouse.id,
-          stock_quantity: initial_stock,
+    if (warehouse_mapping_type === "nationwide") {
+      // Auto-assign to all zonal warehouses for nationwide coverage
+      const { data: zonalWarehouses, error } = await supabase
+        .from("warehouses")
+        .select("*")
+        .eq("type", "zonal")
+        .eq("is_active", true);
+
+      if (!error && zonalWarehouses) {
+        warehouseAssignments = zonalWarehouses.map((warehouse) => ({
+          warehouse_id: warehouse.id,
+          stock_quantity: Math.floor(initial_stock / zonalWarehouses.length), // Distribute stock evenly
           minimum_threshold,
           cost_per_unit,
-          warehouse_type: "central",
-        });
+          warehouse_type: "zonal",
+        }));
 
         // Add to primary warehouses array
-        if (!primary_warehouses.includes(centralWarehouse.id)) {
-          primary_warehouses.push(centralWarehouse.id);
-        }
+        zonalWarehouses.forEach((warehouse) => {
+          if (!primary_warehouses.includes(warehouse.id)) {
+            primary_warehouses.push(warehouse.id);
+          }
+        });
       }
     }
 
@@ -284,12 +288,24 @@ export const getWarehousesForProduct = async (req, res) => {
 
     const { data, error } = await supabase
       .from("product_warehouse")
-      .select("warehouse_id, warehouses (id, name, address, pincode)")
+      .select("warehouse_id, warehouses (id, name, address, location)")
       .eq("product_id", product_id);
 
     if (error) return res.status(500).json({ error: error.message });
 
-    res.status(200).json(data);
+    // Map location to pincode for frontend compatibility
+    const transformedData =
+      data?.map((item) => ({
+        ...item,
+        warehouses: item.warehouses
+          ? {
+              ...item.warehouses,
+              pincode: item.warehouses.location,
+            }
+          : null,
+      })) || [];
+
+    res.status(200).json(transformedData);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
