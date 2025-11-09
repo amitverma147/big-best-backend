@@ -211,18 +211,20 @@ const createWarehouse = async (req, res) => {
 
       // Validate that all assigned pincodes exist in any zonal warehouse
       if (pincode_assignments && pincode_assignments.length > 0) {
-        const pincodeList = pincode_assignments.map(pa => pa.pincode);
+        const pincodeList = pincode_assignments.map((pa) => pa.pincode);
 
         // Get all pincodes served by ANY zonal warehouse
         const { data: allZonalPincodes, error: pincodeError } = await supabase
           .from("warehouse_zones")
-          .select(`
+          .select(
+            `
             delivery_zones (
               zone_pincodes (
                 pincode
               )
             )
-          `)
+          `
+          )
           .eq("is_active", true);
 
         if (pincodeError) {
@@ -234,18 +236,22 @@ const createWarehouse = async (req, res) => {
 
         // Extract all available pincodes from all zonal warehouses
         const availablePincodes = new Set();
-        allZonalPincodes?.forEach(wz => {
-          wz.delivery_zones?.zone_pincodes?.forEach(zp => {
+        allZonalPincodes?.forEach((wz) => {
+          wz.delivery_zones?.zone_pincodes?.forEach((zp) => {
             availablePincodes.add(zp.pincode);
           });
         });
 
         // Check if all assigned pincodes are available in any zonal warehouse
-        const invalidPincodes = pincodeList.filter(pincode => !availablePincodes.has(pincode));
+        const invalidPincodes = pincodeList.filter(
+          (pincode) => !availablePincodes.has(pincode)
+        );
         if (invalidPincodes.length > 0) {
           return res.status(400).json({
             success: false,
-            error: `Invalid pincode assignments. These pincodes are not served by any zonal warehouse: ${invalidPincodes.join(', ')}`,
+            error: `Invalid pincode assignments. These pincodes are not served by any zonal warehouse: ${invalidPincodes.join(
+              ", "
+            )}`,
           });
         }
       }
@@ -314,7 +320,8 @@ const createWarehouse = async (req, res) => {
       // First, get all pincodes that belong to ANY zonal warehouse
       const { data: allZonalPincodes, error: zonalError } = await supabase
         .from("warehouse_zones")
-        .select(`
+        .select(
+          `
           delivery_zones (
             zone_pincodes (
               pincode,
@@ -322,7 +329,8 @@ const createWarehouse = async (req, res) => {
               state
             )
           )
-        `)
+        `
+        )
         .eq("is_active", true);
 
       if (zonalError) {
@@ -349,7 +357,9 @@ const createWarehouse = async (req, res) => {
       if (invalidPincodes.length > 0) {
         return res.status(400).json({
           success: false,
-          error: `The following pincodes are not served by any zonal warehouse: ${invalidPincodes.map(p => p.pincode).join(', ')}`,
+          error: `The following pincodes are not served by any zonal warehouse: ${invalidPincodes
+            .map((p) => p.pincode)
+            .join(", ")}`,
         });
       }
 
@@ -1040,7 +1050,8 @@ const getZonalWarehousePincodes = async (req, res) => {
     // Get all pincodes served by ALL zonal warehouses through their zones
     const { data: zonePincodes, error } = await supabase
       .from("warehouse_zones")
-      .select(`
+      .select(
+        `
         warehouse_id,
         delivery_zones (
           zone_pincodes (
@@ -1050,7 +1061,8 @@ const getZonalWarehousePincodes = async (req, res) => {
             is_active
           )
         )
-      `)
+      `
+      )
       .eq("is_active", true);
 
     if (error) {
@@ -1102,8 +1114,10 @@ const getZonalWarehousePincodes = async (req, res) => {
     res.status(200).json({
       success: true,
       data: pincodesWithAvailability,
-      total_available: pincodesWithAvailability.filter(p => p.is_available).length,
-      total_assigned: pincodesWithAvailability.filter(p => !p.is_available).length,
+      total_available: pincodesWithAvailability.filter((p) => p.is_available)
+        .length,
+      total_assigned: pincodesWithAvailability.filter((p) => !p.is_available)
+        .length,
     });
   } catch (error) {
     console.error("Server error:", error);
