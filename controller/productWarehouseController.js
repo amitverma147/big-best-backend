@@ -32,7 +32,7 @@ export const createProductWithWarehouse = async (req, res) => {
       store_id,
       delivery_type = "nationwide",
       // Warehouse management fields
-      warehouse_mapping_type = "central",
+      warehouse_mapping_type = "nationwide",
       assigned_warehouse_ids = [],
       primary_warehouses = [],
       fallback_warehouses = [],
@@ -104,25 +104,29 @@ export const createProductWithWarehouse = async (req, res) => {
     // Step 2: Handle warehouse assignments based on mapping type
     let warehouseAssignments = [];
 
-    if (
-      warehouse_mapping_type === "central" ||
-      warehouse_mapping_type === "nationwide"
-    ) {
-      // Auto-assign to central warehouse
-      const centralWarehouse = await getCentralWarehouse();
-      if (centralWarehouse) {
-        warehouseAssignments.push({
-          warehouse_id: centralWarehouse.id,
-          stock_quantity: initial_stock,
+    if (warehouse_mapping_type === "nationwide") {
+      // Auto-assign to all zonal warehouses for nationwide coverage
+      const { data: zonalWarehouses, error } = await supabase
+        .from("warehouses")
+        .select("*")
+        .eq("type", "zonal")
+        .eq("is_active", true);
+
+      if (!error && zonalWarehouses) {
+        warehouseAssignments = zonalWarehouses.map((warehouse) => ({
+          warehouse_id: warehouse.id,
+          stock_quantity: Math.floor(initial_stock / zonalWarehouses.length), // Distribute stock evenly
           minimum_threshold,
           cost_per_unit,
-          warehouse_type: "central",
-        });
+          warehouse_type: "zonal",
+        }));
 
         // Add to primary warehouses array
-        if (!primary_warehouses.includes(centralWarehouse.id)) {
-          primary_warehouses.push(centralWarehouse.id);
-        }
+        zonalWarehouses.forEach((warehouse) => {
+          if (!primary_warehouses.includes(warehouse.id)) {
+            primary_warehouses.push(warehouse.id);
+          }
+        });
       }
     }
 

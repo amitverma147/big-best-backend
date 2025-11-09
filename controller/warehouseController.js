@@ -47,46 +47,71 @@ const getWarehouses = async (req, res) => {
     // Fetch zone information for each warehouse
     const warehousesWithZones = await Promise.all(
       warehouses?.map(async (warehouse) => {
-        console.log("Fetching zones for warehouse:", warehouse.id);
-        const { data: warehouseZones, error: zonesError } = await supabase
-          .from("warehouse_zones")
-          .select(
-            `
-            zone_id,
-            delivery_zones (
-              id,
-              name,
-              zone_pincodes (
-                pincode,
-                city,
-                state
+        console.log("Fetching zones/pincodes for warehouse:", warehouse.id);
+        let zones = [];
+        let pincodes = [];
+
+        if (warehouse.type === "zonal") {
+          // Fetch zone information for zonal warehouses
+          const { data: warehouseZones, error: zonesError } = await supabase
+            .from("warehouse_zones")
+            .select(
+              `
+              zone_id,
+              delivery_zones (
+                id,
+                name,
+                zone_pincodes (
+                  pincode,
+                  city,
+                  state
+                )
               )
+            `
             )
-          `
-          )
-          .eq("warehouse_id", warehouse.id)
-          .eq("is_active", true);
+            .eq("warehouse_id", warehouse.id)
+            .eq("is_active", true);
 
-        if (zonesError) {
-          console.error(
-            "Error fetching zones for warehouse",
-            warehouse.id,
-            zonesError
-          );
+          if (zonesError) {
+            console.error(
+              "Error fetching zones for warehouse",
+              warehouse.id,
+              zonesError
+            );
+          }
+
+          zones =
+            warehouseZones
+              ?.map((wz) => ({
+                ...wz.delivery_zones,
+                pincodes: wz.delivery_zones?.zone_pincodes || [],
+              }))
+              .filter(Boolean) || [];
+        } else if (warehouse.type === "division") {
+          // Fetch pincode assignments for division warehouses
+          const { data: warehousePincodes, error: pincodesError } =
+            await supabase
+              .from("warehouse_pincodes")
+              .select("pincode, city, state")
+              .eq("warehouse_id", warehouse.id)
+              .eq("is_active", true);
+
+          if (pincodesError) {
+            console.error(
+              "Error fetching pincodes for warehouse",
+              warehouse.id,
+              pincodesError
+            );
+          }
+
+          pincodes = warehousePincodes || [];
         }
-
-        const zones =
-          warehouseZones
-            ?.map((wz) => ({
-              ...wz.delivery_zones,
-              pincodes: wz.delivery_zones?.zone_pincodes || [],
-            }))
-            .filter(Boolean) || [];
 
         return {
           ...warehouse,
           pincode: warehouse.location, // Map location to pincode for frontend compatibility
           zones: zones,
+          pincodes: pincodes,
         };
       }) || []
     );
@@ -120,12 +145,13 @@ const createWarehouse = async (req, res) => {
       contact_email,
       zone_ids,
       parent_warehouse_id,
+      pincode_assignments, // New: array of {pincode, city, state}
     } = req.body;
 
-    if (!name || !type || !["central", "zonal"].includes(type)) {
+    if (!name || !type || !["zonal", "division"].includes(type)) {
       return res.status(400).json({
         success: false,
-        error: "Name and valid type (central/zonal) are required",
+        error: "Name and valid type (zonal/division) are required",
       });
     }
 
@@ -140,8 +166,28 @@ const createWarehouse = async (req, res) => {
       });
     }
 
-    // Validate parent warehouse if specified
+    // For division warehouses, pincode_assignments are required
+    if (
+      type === "division" &&
+      (!pincode_assignments ||
+        !Array.isArray(pincode_assignments) ||
+        pincode_assignments.length === 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Division warehouses must be assigned to at least one pincode",
+      });
+    }
+
+    // Validate parent warehouse if specified (only for division warehouses)
     if (parent_warehouse_id) {
+      if (type !== "division") {
+        return res.status(400).json({
+          success: false,
+          error: "Only division warehouses can have parent warehouses",
+        });
+      }
+
       const { data: parentWarehouse, error: parentError } = await supabase
         .from("warehouses")
         .select("id, type")
@@ -155,13 +201,59 @@ const createWarehouse = async (req, res) => {
         });
       }
 
-      // Ensure hierarchy rules: zonal can only be child of central
-      if (type === "zonal" && parentWarehouse.type !== "central") {
+      // Division warehouses can only be children of zonal warehouses
+      if (parentWarehouse.type !== "zonal") {
         return res.status(400).json({
           success: false,
-          error: "Zonal warehouses can only be children of central warehouses",
+          error: "Division warehouses can only be children of zonal warehouses",
         });
       }
+
+      // Validate that all assigned pincodes exist in any zonal warehouse
+      if (pincode_assignments && pincode_assignments.length > 0) {
+        const pincodeList = pincode_assignments.map(pa => pa.pincode);
+
+        // Get all pincodes served by ANY zonal warehouse
+        const { data: allZonalPincodes, error: pincodeError } = await supabase
+          .from("warehouse_zones")
+          .select(`
+            delivery_zones (
+              zone_pincodes (
+                pincode
+              )
+            )
+          `)
+          .eq("is_active", true);
+
+        if (pincodeError) {
+          return res.status(500).json({
+            success: false,
+            error: "Failed to validate pincode assignments",
+          });
+        }
+
+        // Extract all available pincodes from all zonal warehouses
+        const availablePincodes = new Set();
+        allZonalPincodes?.forEach(wz => {
+          wz.delivery_zones?.zone_pincodes?.forEach(zp => {
+            availablePincodes.add(zp.pincode);
+          });
+        });
+
+        // Check if all assigned pincodes are available in any zonal warehouse
+        const invalidPincodes = pincodeList.filter(pincode => !availablePincodes.has(pincode));
+        if (invalidPincodes.length > 0) {
+          return res.status(400).json({
+            success: false,
+            error: `Invalid pincode assignments. These pincodes are not served by any zonal warehouse: ${invalidPincodes.join(', ')}`,
+          });
+        }
+      }
+    } else if (type === "division") {
+      return res.status(400).json({
+        success: false,
+        error: "Division warehouses must have a parent zonal warehouse",
+      });
     }
 
     // Start a transaction-like approach (Supabase doesn't support transactions directly)
@@ -177,7 +269,7 @@ const createWarehouse = async (req, res) => {
         contact_phone,
         contact_email,
         parent_warehouse_id,
-        hierarchy_level: type === "central" ? 0 : 1,
+        hierarchy_level: type === "zonal" ? 0 : 1, // zonal=0, division=1
       })
       .select()
       .single();
@@ -209,6 +301,92 @@ const createWarehouse = async (req, res) => {
         return res.status(500).json({
           success: false,
           error: "Warehouse created but failed to map zones",
+        });
+      }
+    }
+
+    // If division warehouse, create pincode assignments
+    if (
+      type === "division" &&
+      pincode_assignments &&
+      pincode_assignments.length > 0
+    ) {
+      // First, get all pincodes that belong to ANY zonal warehouse
+      const { data: allZonalPincodes, error: zonalError } = await supabase
+        .from("warehouse_zones")
+        .select(`
+          delivery_zones (
+            zone_pincodes (
+              pincode,
+              city,
+              state
+            )
+          )
+        `)
+        .eq("is_active", true);
+
+      if (zonalError) {
+        console.error("Error fetching zonal warehouse pincodes:", zonalError);
+        return res.status(500).json({
+          success: false,
+          error: "Failed to validate zonal warehouse pincodes",
+        });
+      }
+
+      // Flatten all pincodes from all zonal warehouse zones
+      const availablePincodes = new Set();
+      allZonalPincodes?.forEach((wz) => {
+        wz.delivery_zones?.zone_pincodes?.forEach((zp) => {
+          availablePincodes.add(zp.pincode);
+        });
+      });
+
+      // Validate that all assigned pincodes belong to any zonal warehouse
+      const invalidPincodes = pincode_assignments.filter(
+        (assignment) => !availablePincodes.has(assignment.pincode)
+      );
+
+      if (invalidPincodes.length > 0) {
+        return res.status(400).json({
+          success: false,
+          error: `The following pincodes are not served by any zonal warehouse: ${invalidPincodes.map(p => p.pincode).join(', ')}`,
+        });
+      }
+
+      // Check for pincode conflicts (no two divisions can serve same pincode)
+      for (const assignment of pincode_assignments) {
+        const { data: existing, error: conflictError } = await supabase
+          .from("warehouse_pincodes")
+          .select("id, warehouse_id")
+          .eq("pincode", assignment.pincode)
+          .eq("is_active", true)
+          .single();
+
+        if (existing) {
+          return res.status(400).json({
+            success: false,
+            error: `Pincode ${assignment.pincode} is already assigned to another division warehouse`,
+          });
+        }
+      }
+
+      const pincodeMappings = pincode_assignments.map((assignment) => ({
+        warehouse_id: warehouse.id,
+        pincode: assignment.pincode,
+        city: assignment.city || null,
+        state: assignment.state || null,
+        is_active: true,
+      }));
+
+      const { error: pincodeError } = await supabase
+        .from("warehouse_pincodes")
+        .insert(pincodeMappings);
+
+      if (pincodeError) {
+        console.error("Failed to create pincode mappings:", pincodeError);
+        return res.status(500).json({
+          success: false,
+          error: "Warehouse created but failed to assign pincodes",
         });
       }
     }
@@ -421,10 +599,10 @@ const updateWarehouse = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!name || !type || !["central", "zonal"].includes(type)) {
+    if (!name || !type || !["zonal", "division"].includes(type)) {
       return res.status(400).json({
         success: false,
-        error: "Name and valid type (central/zonal) are required",
+        error: "Name and valid type (zonal/division) are required",
       });
     }
 
@@ -851,6 +1029,348 @@ const getChildWarehouses = async (req, res) => {
   }
 };
 
+// Get available pincodes for division warehouse creation (from all zonal warehouses)
+const getZonalWarehousePincodes = async (req, res) => {
+  try {
+    const { warehouseId } = req.params;
+
+    // For division warehouse creation, return all pincodes from all zonal warehouses
+    // The warehouseId parameter is kept for backward compatibility but not used for filtering
+
+    // Get all pincodes served by ALL zonal warehouses through their zones
+    const { data: zonePincodes, error } = await supabase
+      .from("warehouse_zones")
+      .select(`
+        warehouse_id,
+        delivery_zones (
+          zone_pincodes (
+            pincode,
+            city,
+            state,
+            is_active
+          )
+        )
+      `)
+      .eq("is_active", true);
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch available pincodes",
+        details: error.message,
+      });
+    }
+
+    // Flatten and deduplicate pincodes
+    const pincodesMap = new Map();
+    zonePincodes?.forEach((wz) => {
+      wz.delivery_zones?.zone_pincodes?.forEach((zp) => {
+        if (zp.is_active) {
+          pincodesMap.set(zp.pincode, {
+            pincode: zp.pincode,
+            city: zp.city,
+            state: zp.state,
+          });
+        }
+      });
+    });
+
+    const availablePincodes = Array.from(pincodesMap.values());
+
+    // Get already assigned pincodes (to other division warehouses)
+    const { data: assignedPincodes, error: assignedError } = await supabase
+      .from("warehouse_pincodes")
+      .select("pincode")
+      .eq("is_active", true);
+
+    if (assignedError) {
+      console.error("Error fetching assigned pincodes:", assignedError);
+    }
+
+    const assignedPincodeSet = new Set(
+      assignedPincodes?.map((ap) => ap.pincode) || []
+    );
+
+    // Mark which pincodes are available vs already assigned
+    const pincodesWithAvailability = availablePincodes.map((pincode) => ({
+      ...pincode,
+      is_available: !assignedPincodeSet.has(pincode.pincode),
+      assigned_to_division: assignedPincodeSet.has(pincode.pincode),
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: pincodesWithAvailability,
+      total_available: pincodesWithAvailability.filter(p => p.is_available).length,
+      total_assigned: pincodesWithAvailability.filter(p => !p.is_available).length,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+// Get warehouse pincodes (for existing division warehouses)
+const getWarehousePincodes = async (req, res) => {
+  try {
+    const { warehouseId } = req.params;
+
+    // Check if warehouse exists and is a division
+    const { data: warehouse, error: warehouseError } = await supabase
+      .from("warehouses")
+      .select("id, name, type")
+      .eq("id", warehouseId)
+      .single();
+
+    if (warehouseError || !warehouse) {
+      return res.status(404).json({
+        success: false,
+        error: "Warehouse not found",
+      });
+    }
+
+    if (warehouse.type !== "division") {
+      return res.status(400).json({
+        success: false,
+        error: "Only division warehouses have pincode assignments",
+      });
+    }
+
+    const { data: pincodes, error } = await supabase
+      .from("warehouse_pincodes")
+      .select("*")
+      .eq("warehouse_id", warehouseId)
+      .eq("is_active", true)
+      .order("pincode");
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch warehouse pincodes",
+        details: error.message,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: pincodes,
+      warehouse: warehouse,
+      count: pincodes.length,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+// Add pincodes to division warehouse
+const addWarehousePincodes = async (req, res) => {
+  try {
+    const { warehouseId } = req.params;
+    const { pincodes } = req.body; // Array of {pincode, city, state}
+
+    if (!pincodes || !Array.isArray(pincodes) || pincodes.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Pincodes array is required",
+      });
+    }
+
+    // Check if warehouse exists and is a division
+    const { data: warehouse, error: warehouseError } = await supabase
+      .from("warehouses")
+      .select("id, name, type")
+      .eq("id", warehouseId)
+      .single();
+
+    if (warehouseError || !warehouse) {
+      return res.status(404).json({
+        success: false,
+        error: "Warehouse not found",
+      });
+    }
+
+    if (warehouse.type !== "division") {
+      return res.status(400).json({
+        success: false,
+        error: "Only division warehouses can have pincode assignments",
+      });
+    }
+
+    // Check for pincode conflicts
+    for (const pincodeData of pincodes) {
+      const { data: existing, error: conflictError } = await supabase
+        .from("warehouse_pincodes")
+        .select("id, warehouse_id")
+        .eq("pincode", pincodeData.pincode)
+        .eq("is_active", true)
+        .single();
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          error: `Pincode ${pincodeData.pincode} is already assigned to another division warehouse`,
+        });
+      }
+    }
+
+    // Insert new pincode assignments
+    const pincodeMappings = pincodes.map((pincodeData) => ({
+      warehouse_id: parseInt(warehouseId),
+      pincode: pincodeData.pincode,
+      city: pincodeData.city || null,
+      state: pincodeData.state || null,
+      is_active: true,
+    }));
+
+    const { data: insertedPincodes, error } = await supabase
+      .from("warehouse_pincodes")
+      .insert(pincodeMappings)
+      .select();
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to add pincode assignments",
+        details: error.message,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: insertedPincodes,
+      message: "Pincodes assigned successfully",
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+// Remove pincode from division warehouse
+const removeWarehousePincode = async (req, res) => {
+  try {
+    const { warehouseId, pincode } = req.params;
+
+    // Check if warehouse exists and is a division
+    const { data: warehouse, error: warehouseError } = await supabase
+      .from("warehouses")
+      .select("id, name, type")
+      .eq("id", warehouseId)
+      .single();
+
+    if (warehouseError || !warehouse) {
+      return res.status(404).json({
+        success: false,
+        error: "Warehouse not found",
+      });
+    }
+
+    if (warehouse.type !== "division") {
+      return res.status(400).json({
+        success: false,
+        error: "Only division warehouses have pincode assignments",
+      });
+    }
+
+    // Soft delete the pincode assignment
+    const { data: updatedPincode, error } = await supabase
+      .from("warehouse_pincodes")
+      .update({ is_active: false })
+      .eq("warehouse_id", warehouseId)
+      .eq("pincode", pincode)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to remove pincode assignment",
+        details: error.message,
+      });
+    }
+
+    if (!updatedPincode) {
+      return res.status(404).json({
+        success: false,
+        error: "Pincode assignment not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: updatedPincode,
+      message: "Pincode assignment removed successfully",
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
+// Find warehouse for order fulfillment
+const findWarehouseForOrder = async (req, res) => {
+  try {
+    const { pincode, product_type, preferred_warehouse_id } = req.query;
+
+    if (!pincode || !product_type) {
+      return res.status(400).json({
+        success: false,
+        error: "Pincode and product_type are required",
+      });
+    }
+
+    // Use the database function we created
+    const { data: warehouses, error } = await supabase.rpc(
+      "find_warehouse_for_order",
+      {
+        customer_pincode: pincode,
+        product_type: product_type,
+        preferred_warehouse_id: preferred_warehouse_id
+          ? parseInt(preferred_warehouse_id)
+          : null,
+      }
+    );
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to find warehouse for order",
+        details: error.message,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: warehouses,
+      count: warehouses.length,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+  }
+};
+
 export {
   getWarehouses,
   createWarehouse,
@@ -865,4 +1385,9 @@ export {
   removeProductFromWarehouse,
   getWarehouseHierarchy,
   getChildWarehouses,
+  getWarehousePincodes,
+  addWarehousePincodes,
+  removeWarehousePincode,
+  getZonalWarehousePincodes,
+  findWarehouseForOrder,
 };
