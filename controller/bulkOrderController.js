@@ -16,7 +16,9 @@ export const createBulkOrderEnquiry = async (req, res) => {
       expectedPrice,
       deliveryTimeline,
       gstNumber,
-      address
+      address,
+      variant_id,
+      variant_details
     } = req.body;
 
     // Validation
@@ -39,6 +41,8 @@ export const createBulkOrderEnquiry = async (req, res) => {
       delivery_timeline: deliveryTimeline ? String(deliveryTimeline) : null,
       gst_number: gstNumber ? String(gstNumber) : null,
       address: address ? String(address) : null,
+      variant_id: variant_id || null,
+      variant_details: variant_details ? String(variant_details) : null,
       status: 'Pending'
     };
 
@@ -226,10 +230,14 @@ export const createWholesaleBulkOrder = async (req, res) => {
       return res.status(500).json({ success: false, error: orderError.message });
     }
 
-    // Create order items
+    // Create order items with variant support
     const orderItems = items.map(item => ({
       wholesale_bulk_order_id: order.id,
       product_id: String(item.product_id || item.id),
+      variant_id: item.variant_id || null,
+      variant_name: item.variant_name || null,
+      variant_weight: item.variant_weight || null,
+      variant_unit: item.variant_unit || null,
       quantity: parseInt(item.quantity),
       price: parseFloat(item.price),
       is_bulk_order: item.is_bulk_order !== undefined ? item.is_bulk_order : true,

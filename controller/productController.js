@@ -3,9 +3,24 @@ import * as deliveryValidationService from "./deliveryValidationService.js";
 
 export const getAllProducts = async (req, res) => {
   try {
+    // Fetch products with their default variants
     const { data, error } = await supabase
       .from("products")
-      .select("*")
+      .select(`
+        *,
+        product_variants!left(
+          id,
+          variant_name,
+          variant_price,
+          variant_old_price,
+          variant_discount,
+          variant_stock,
+          variant_weight,
+          variant_unit,
+          variant_image,
+          is_default
+        )
+      `)
       .eq("active", true);
 
     if (error) {
@@ -14,29 +29,45 @@ export const getAllProducts = async (req, res) => {
     }
 
     // Transform the data to match frontend expectations
-    const transformedProducts = data.map((product) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      oldPrice: product.old_price,
-      rating: product.rating || 4.0,
-      reviews: product.review_count || 0,
-      discount: product.discount || 0,
-      image: product.image,
-      images: product.images,
-      inStock: (product.stock || 0) > 0,
-      stock: product.stock || 0,
-      stockQuantity: product.stock || 0,
-      popular: product.popular,
-      featured: product.featured,
-      category: product.category,
-      weight:
-        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
-      brand: product.brand_name || "BigandBest",
-      shipping_amount: product.shipping_amount || 0,
-      created_at: product.created_at,
-    }));
+    const transformedProducts = data.map((product) => {
+      // Find default variant if exists
+      const defaultVariant = product.product_variants?.find(v => v.is_default === true);
+      
+      return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        // ✅ ALWAYS use main product pricing for card display (NEVER variant pricing)
+        price: product.price,
+        oldPrice: product.old_price,
+        rating: product.rating || 4.0,
+        reviews: product.review_count || 0,
+        discount: product.discount || 0,
+        image: product.image,
+        images: product.images,
+        inStock: (product.stock_quantity || product.stock || 0) > 0,
+        stock: product.stock_quantity || product.stock || 0,
+        stockQuantity: product.stock_quantity || product.stock || 0,
+        popular: product.popular,
+        featured: product.featured,
+        category: product.category,
+        weight: product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+        brand: product.brand_name || "BigandBest",
+        shipping_amount: product.shipping_amount || 0,
+        created_at: product.created_at,
+        // ✅ Keep variants separate - DON'T let them override main product data
+        hasVariants: product.product_variants?.length > 0,
+        variants: product.product_variants || [],
+        defaultVariant: defaultVariant,
+        // ✅ Preserve original product data (for card display)
+        originalPrice: product.price,
+        originalOldPrice: product.old_price,
+        originalStock: product.stock_quantity || product.stock || 0,
+        // ✅ Ensure main product data is never overridden
+        cardPrice: product.price,
+        cardOldPrice: product.old_price
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -408,8 +439,8 @@ export const getProductById = async (req, res) => {
       image: data.image,
       images: data.images,
       video: data.video,
-      inStock: (data.stock || 0) > 0,
-      stock: data.stock || 0,
+      inStock: (data.stock_quantity || data.stock || 0) > 0,
+      stock: data.stock_quantity || data.stock || 0,
       popular: data.popular,
       featured: data.featured,
       category: data.category,
@@ -723,7 +754,21 @@ export const getQuickPicks = async (req, res) => {
       // Get latest products
       const { data: productDetails, error: detailsError } = await supabase
         .from("products")
-        .select("*")
+        .select(`
+          *,
+          product_variants!left(
+            id,
+            variant_name,
+            variant_price,
+            variant_old_price,
+            variant_discount,
+            variant_stock,
+            variant_weight,
+            variant_unit,
+            variant_image,
+            is_default
+          )
+        `)
         .eq("active", true)
         .order("created_at", { ascending: false })
         .limit(parseInt(limit));
@@ -761,7 +806,21 @@ export const getQuickPicks = async (req, res) => {
         // Get product details for top selling products
         const { data: productDetails, error: detailsError } = await supabase
           .from("products")
-          .select("*")
+          .select(`
+            *,
+            product_variants!left(
+              id,
+              variant_name,
+              variant_price,
+              variant_old_price,
+              variant_discount,
+              variant_stock,
+              variant_weight,
+              variant_unit,
+              variant_image,
+              is_default
+            )
+          `)
           .in("id", topSellingProductIds)
           .eq("active", true);
 
@@ -907,32 +966,46 @@ export const getQuickPicks = async (req, res) => {
     console.log("Quick picks data:", products.length, "products found");
 
     // Transform the data to match frontend expectations
-    const transformedProducts = products.map((product) => ({
-      id: product.id,
-      name: product.name,
-      description: product.description,
-      price: product.price,
-      oldPrice: product.old_price,
-      rating: product.rating || 4.0,
-      reviews: product.review_count || 0,
-      discount: product.discount || 0,
-      image: product.image,
-      images: product.images,
-      inStock: (product.stock || 0) > 0,
-      stock: product.stock || 0,
-      popular: product.popular,
-      featured: product.featured,
-      most_orders: product.most_orders,
-      top_sale: product.top_sale,
-      category: product.category,
-      category_info: product.categories,
-      weight:
-        product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
-      brand: product.brand_name || "BigandBest",
-      shipping_amount: product.shipping_amount || 0,
-      specifications: product.specifications,
-      created_at: product.created_at,
-    }));
+    const transformedProducts = products.map((product) => {
+      const defaultVariant = product.product_variants?.find(v => v.is_default === true);
+      
+      return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        // ✅ ALWAYS use main product pricing for card display (NEVER variant pricing)
+        price: product.price,
+        oldPrice: product.old_price,
+        rating: product.rating || 4.0,
+        reviews: product.review_count || 0,
+        discount: product.discount || 0,
+        image: product.image,
+        images: product.images,
+        inStock: (product.stock || 0) > 0,
+        stock: product.stock || 0,
+        popular: product.popular,
+        featured: product.featured,
+        most_orders: product.most_orders,
+        top_sale: product.top_sale,
+        category: product.category,
+        category_info: product.categories,
+        weight: product.uom || `${product.uom_value || 1} ${product.uom_unit || "kg"}`,
+        brand: product.brand_name || "BigandBest",
+        shipping_amount: product.shipping_amount || 0,
+        specifications: product.specifications,
+        created_at: product.created_at,
+        hasVariants: product.product_variants?.length > 0,
+        variants: product.product_variants || [],
+        defaultVariant: defaultVariant,
+        // ✅ Preserve original product data (for card display)
+        originalPrice: product.price,
+        originalOldPrice: product.old_price,
+        originalStock: product.stock || 0,
+        // ✅ Ensure main product data is never overridden
+        cardPrice: product.price,
+        cardOldPrice: product.old_price
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -1225,5 +1298,32 @@ export const checkProductDeliveryWithWarehouse = async (req, res) => {
       success: false,
       error: "Internal server error",
     });
+  }
+};
+
+// Get product variants
+export const getProductVariants = async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    const { data, error } = await supabase
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", productId)
+      .order("is_default", { ascending: false });
+
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.status(200).json({
+      success: true,
+      variants: data || [],
+      total: data?.length || 0,
+    });
+  } catch (error) {
+    console.error("Server error:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
