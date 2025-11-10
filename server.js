@@ -71,27 +71,36 @@ const PORT = process.env.PORT || 8000;
 const allowedOrigins = [
   "http://localhost:3000", // Next.js frontend
   "http://localhost:3001", // Next.js frontend (alternative port)
-  "http://localhost:5173",
-  "http://localhost:5174",
+  "http://localhost:5173",  // Vite dev server
+  "http://localhost:5174",  // Vite dev server (alternative)
   "https://big-best-admin.vercel.app", // Admin panel (without trailing slash)
-  "https://big-best-admin.vercel.app/", 
+  "https://big-best-admin.vercel.app/", // Admin panel (with trailing slash)
   "https://ecommerce-umber-five-95.vercel.app",
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
   "https://www.bigbestmart.com",
-  "https://big-best-frontend.onrender.com",
+  "https://big-best-frontend.onrender.com", // Render.com deployment - IMPORTANT for production
   "https://admin-eight-ruddy.vercel.app",
-  "https://big-best-frontend.vercel.app", // New deployed frontend
+  "https://big-best-frontend.vercel.app", // Vercel deployment
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
+    console.log(`🔍 CORS check - Origin: ${origin || 'no origin'}`);
+    
     // allow requests with no origin like mobile apps or curl
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ No origin - allowing request');
+      return callback(null, true);
+    }
+    
     if (allowedOrigins.includes(origin)) {
+      console.log(`✅ Origin allowed: ${origin}`);
       return callback(null, true);
     } else {
-      return callback(new Error("Not allowed by CORS"));
+      console.log(`❌ Origin BLOCKED: ${origin}`);
+      console.log(`📋 Allowed origins: ${allowedOrigins.join(', ')}`);
+      return callback(new Error(`CORS blocked origin: ${origin}`));
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -105,6 +114,7 @@ const corsOptions = {
     "Cache-Control",
     "X-File-Name",
   ],
+  credentials: true,
 };
 /* app.use(cors({
    origin: function (origin, callback) {
@@ -215,7 +225,6 @@ app.use(
   },
   codOrderRoutes
 );
-app.use("/api/cod-orders", codOrderRoutes);
 app.use("/api/zones", zoneRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/upload", uploadRoutes);
@@ -278,6 +287,10 @@ if (missingEnvVars.length > 0) {
   console.log("✅ All required environment variables are set");
 }
 
+// Log CORS configuration for debugging
+console.log(`🌐 CORS configured for ${allowedOrigins.length} origins:`);
+allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+
 // Export the app for Vercel
 export default app;
 
@@ -291,5 +304,6 @@ if (process.env.NODE_ENV !== "production") {
         process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_") ? "TEST" : "LIVE"
       }`
     );
+    console.log(`🔗 Supabase URL: ${process.env.SUPABASE_URL || 'Not configured'}`);
   });
 }
