@@ -98,6 +98,13 @@ app.use(
 );
 
 // Handle preflight globally - removed invalid pattern
+app.options('*', (req, res) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.sendStatus(200);
+});
 
 // Debug middleware to log Origin header
 app.use((req, res, next) => {
@@ -156,6 +163,20 @@ app.use("/api/saving-zone-group-product", savingZoneGroupProductRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/sub-stores", subStoreRoutes);
 app.use("/api/you-may-like-products", YouMayLikeProductRoutes);
+app.use("/api/banner", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 app.use("/api/banner", addBannerRoutes);
 app.use("/api/banner-groups", addBannerGroupRoutes);
 app.use("/api/banner-group-products", addBannerGroupProductRoutes);
