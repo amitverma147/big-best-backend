@@ -79,6 +79,7 @@ const allowedOrigins = [
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
   "https://www.bigbestmart.com",
+  "https://big-best-frontend.onrender.com",
   "https://admin-eight-ruddy.vercel.app",
   "https://big-best-frontend.vercel.app", // New deployed frontend
 ];
