@@ -71,8 +71,8 @@ const PORT = process.env.PORT || 8000;
 const allowedOrigins = [
   "http://localhost:3000", // Next.js frontend
   "http://localhost:3001", // Next.js frontend (alternative port)
-  "http://localhost:5173",  // Vite dev server
-  "http://localhost:5174",  // Vite dev server (alternative)
+  "http://localhost:5173", // Vite dev server
+  "http://localhost:5174", // Vite dev server (alternative)
   "https://big-best-admin.vercel.app", // Admin panel (without trailing slash)
   "https://big-best-admin.vercel.app/", // Admin panel (with trailing slash)
   "https://ecommerce-umber-five-95.vercel.app",
@@ -86,20 +86,20 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log(`🔍 CORS check - Origin: ${origin || 'no origin'}`);
-    
+    console.log(`🔍 CORS check - Origin: ${origin || "no origin"}`);
+
     // allow requests with no origin like mobile apps or curl
     if (!origin) {
-      console.log('✅ No origin - allowing request');
+      console.log("✅ No origin - allowing request");
       return callback(null, true);
     }
-    
+
     if (allowedOrigins.includes(origin)) {
       console.log(`✅ Origin allowed: ${origin}`);
       return callback(null, true);
     } else {
       console.log(`❌ Origin BLOCKED: ${origin}`);
-      console.log(`📋 Allowed origins: ${allowedOrigins.join(', ')}`);
+      console.log(`📋 Allowed origins: ${allowedOrigins.join(", ")}`);
       return callback(new Error(`CORS blocked origin: ${origin}`));
     }
   },
@@ -289,7 +289,7 @@ if (missingEnvVars.length > 0) {
 
 // Log CORS configuration for debugging
 console.log(`🌐 CORS configured for ${allowedOrigins.length} origins:`);
-allowedOrigins.forEach(origin => console.log(`   - ${origin}`));
+allowedOrigins.forEach((origin) => console.log(`   - ${origin}`));
 
 // Export the app for Vercel
 export default app;
@@ -304,6 +304,8 @@ if (process.env.NODE_ENV !== "production") {
         process.env.RAZORPAY_KEY_ID?.startsWith("rzp_test_") ? "TEST" : "LIVE"
       }`
     );
-    console.log(`🔗 Supabase URL: ${process.env.SUPABASE_URL || 'Not configured'}`);
+    console.log(
+      `🔗 Supabase URL: ${process.env.SUPABASE_URL || "Not configured"}`
+    );
   });
 }
