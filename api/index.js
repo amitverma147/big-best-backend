@@ -207,6 +207,20 @@ app.use("/api/shop-by-stores", shopByStoreRoutes);
 app.use("/api/video-cards", videoCardRoutes);
 app.use("/api/product-sections", productSectionRoutes);
 app.use("/api/promo-banner", promoBannerRoutes);
+app.use("/api/store-section-mappings", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control, X-File-Name"
+  );
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
 app.use("/api/store-section-mappings", storeSectionMappingRoutes);
 app.use("/api/bulk-wholesale", bulkWholesaleRoutes);
 app.use("/api/cod-orders", codOrderRoutes);
