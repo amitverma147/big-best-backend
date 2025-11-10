@@ -100,7 +100,8 @@ const corsOptions = {
     } else {
       console.log(`❌ Origin BLOCKED: ${origin}`);
       console.log(`📋 Allowed origins: ${allowedOrigins.join(", ")}`);
-      return callback(new Error(`CORS blocked origin: ${origin}`));
+      // Return null, false instead of throwing error to avoid 500 status
+      return callback(null, false);
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -138,7 +139,8 @@ app.use(
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
-        return callback(new Error("Not allowed by CORS"));
+        // Return null, false instead of throwing error to avoid 500 status
+        return callback(null, false);
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
