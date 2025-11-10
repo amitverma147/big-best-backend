@@ -74,7 +74,7 @@ const allowedOrigins = [
   "http://localhost:5173", // Vite dev server
   "http://localhost:5174", // Vite dev server (alternative)
   "https://big-best-admin.vercel.app", // Admin panel (without trailing slash)
-  "https://big-best-admin.vercel.app/", // Admin panel (with trailing slash)
+  "https://big-best-admin.vercel.app", // Admin panel (with trailing slash)
   "https://ecommerce-umber-five-95.vercel.app",
   "https://admin-eight-flax.vercel.app",
   "https://ecommerce-six-brown-12.vercel.app",
@@ -82,7 +82,8 @@ const allowedOrigins = [
   "https://big-best-frontend.onrender.com", // Render.com deployment - IMPORTANT for production
   "https://admin-eight-ruddy.vercel.app",
   "https://big-best-frontend.vercel.app",
-  "https://frontend-deployed-hazel.vercel.app/" // Vercel deployment
+  "https://frontend-deployed-hazel.vercel.app",
+  "https://column-trucks-milk-car.trycloudflare.com"
 ];
 
 const corsOptions = {
