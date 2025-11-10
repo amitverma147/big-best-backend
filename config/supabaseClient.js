@@ -20,7 +20,10 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl || !supabaseKey) {
   console.error("❌ Missing Supabase environment variables");
   console.error("SUPABASE_URL:", supabaseUrl ? "present" : "missing");
-  console.error("SUPABASE_SERVICE_ROLE_KEY:", supabaseKey ? "present" : "missing");
+  console.error(
+    "SUPABASE_SERVICE_ROLE_KEY:",
+    supabaseKey ? "present" : "missing"
+  );
   throw new Error("Missing required Supabase environment variables");
 }
 

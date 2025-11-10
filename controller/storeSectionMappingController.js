@@ -246,7 +246,9 @@ export async function getProductsBySection(req, res) {
 
     if (sectionError) {
       console.error("❌ Section query error:", sectionError);
-      return res.status(400).json({ success: false, error: sectionError.message });
+      return res
+        .status(400)
+        .json({ success: false, error: sectionError.message });
     }
 
     if (!sectionData) {
@@ -296,10 +298,7 @@ export async function getProductsBySection(req, res) {
     if (storeMappingsError) {
       console.error("❌ Store mappings query error:", storeMappingsError);
       // Don't return error here, continue
-    } else if (
-      storeMappingsData &&
-      storeMappingsData.length > 0
-    ) {
+    } else if (storeMappingsData && storeMappingsData.length > 0) {
       const storeIds = storeMappingsData.map((mapping) => mapping.store_id);
       console.log("✅ Found store mappings:", storeIds);
 
